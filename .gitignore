@@ -147,3 +147,22 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+
+# Secrets:
+.env
+.env.*
+*.pem
+*.key
+
+# Learner Lab credentials
+credentials
+
+# IDE and OS files
+.idea/
+.vscode/
+Thumbs.db
+.DS_Store
+
+# Build output
+*.zip
