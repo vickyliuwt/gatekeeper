@@ -1,0 +1,58 @@
+# LF line endings
+
+# Default
+* text=auto eol=lf
+
+#Code and config
+*.js            text eol=lf
+*.mjs           text eol=lf
+*.cjs           text eol=lf
+*.jsx           text eol=lf
+*.ts            text eol=lf
+*.json          text eol=lf
+*.html          text eol=lf
+*.css           text eol=lf
+*.md            text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.toml          text eol=lf
+*.txt           text eol=lf
+*.svg           text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+.dockerignore   text eol=lf
+.env.example    text eol=lf
+
+# run inside Linux / Docker
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+Dockerfile.*    text eol=lf
+
+# Windows
+*.ps1           text eol=crlf
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+
+# Binary files
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ico           binary
+*.webp          binary
+*.pdf           binary
+*.pptx          binary
+*.docx          binary
+*.xlsx          binary
+*.zip           binary
+*.gz            binary
+*.tgz           binary
+*.woff          binary
+*.woff2         binary
+*.ttf           binary
+*.otf           binary
+*.mp4           binary
+*.mov           binary
+
+# GitHub
+package-lock.json  linguist-generated=true

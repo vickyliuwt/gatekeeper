@@ -149,20 +149,34 @@ vite.config.ts.timestamp-*
 .turbo
 
 
-# Secrets:
-.env
-.env.*
+
+
+# Secrets and keys
 *.pem
 *.key
+*.ppk
+*.p12
+*.pfx
 
-# Learner Lab credentials
+# AWS / Learner Lab credentials
 credentials
+.aws/
+
+# AWS SAM build output
+.aws-sam/
+
+# course code
+/cs6620-main/
 
 # IDE and OS files
 .idea/
 .vscode/
 Thumbs.db
+Desktop.ini
 .DS_Store
 
-# Build output
+# Office lock files
+~$*
+
+# Archives
 *.zip
