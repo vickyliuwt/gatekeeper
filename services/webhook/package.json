@@ -8,5 +8,8 @@
   },
   "scripts": {
     "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^4.22.3"
   }
 }
