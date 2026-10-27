@@ -180,3 +180,28 @@ Desktop.ini
 
 # Archives
 *.zip
+# Terraform working directories and state
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Personal Terraform variable files
+*.tfvars
+*.tfvars.json
+
+# Local backend configuration
+backend.hcl
+
+# Saved Terraform plans (may contain sensitive values)
+*.tfplan
+tfplan
+
+# Terraform crash logs
+crash.log
+crash.*.log
+
+# Keep dependency lock files and configuration templates
+!.terraform.lock.hcl
+!*.tfvars.example
+!*.tfvars.json.example
+!backend.hcl.example
