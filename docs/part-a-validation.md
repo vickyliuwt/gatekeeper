@@ -39,3 +39,15 @@ Concurrent PR throughput and worker completion time require a separate test.
 - Manually setting `gk-api-5xx` to ALARM delivered an email through SNS.
   This tested notification delivery without inducing a production error.
 - GitHub Actions ran the webhook test suite: 35 passed, 0 failed.
+
+## Part A rebuild test
+
+We retained the versioned Terraform state bucket and the SSM webhook secret,
+destroyed the 14 resources managed by the main Terraform configuration, and
+rebuilt them with `scripts/deploy.sh`. We then updated the demo repository's
+webhook URL and redelivered the `pull_request.synchronize` event for PR #1.
+
+Elapsed time from the start of teardown to confirmation of GitHub HTTP 202
+was 20 minutes 52 seconds, within the 30-minute target. GitHub reported a
+delivery duration of 2.08 seconds. The response contained the expected job ID,
+`pr-1441247564-55485306794e441cb3fc3e522598336e8a8be6db`.
