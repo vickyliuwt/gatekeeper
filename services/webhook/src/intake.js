@@ -68,10 +68,32 @@ export function createIntake({
       return { statusCode: 400, body: { error: 'invalid_pr_payload' } };
     }
 
+    const context = {
+      svc: 'webhook',
+      jobId: job.jobId,
+      traceId: job.traceId,
+    };
+
+    let stage = 'store';
     try {
-      await createJobIfAbsent(job);
+      const result = await createJobIfAbsent(job);
+      console.log(JSON.stringify({
+        ...context,
+        stage,
+        msg: 'job_ready',
+        created: result?.created,
+      }));
+
+      stage = 'enqueue';
       await enqueue({ jobId: job.jobId, traceId: job.traceId });
-    } catch {
+      console.log(JSON.stringify({ ...context, stage, msg: 'job_enqueued' }));
+    } catch (error) {
+      console.error(JSON.stringify({
+        ...context,
+        stage,
+        msg: 'intake_failed',
+        errorType: error?.name || 'Error',
+      }));
       return {
         statusCode: 503,
         body: { error: 'intake_unavailable', jobId: job.jobId },
