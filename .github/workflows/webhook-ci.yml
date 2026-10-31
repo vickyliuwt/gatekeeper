@@ -1,0 +1,43 @@
+name: Webhook CI
+
+on:
+  push:
+    branches: [part-a-test]
+    paths:
+      - 'services/webhook/**'
+      - '.github/workflows/webhook-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/webhook/**'
+      - '.github/workflows/webhook-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  webhook-tests:
+    name: Webhook unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: services/webhook
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: services/webhook/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run webhook tests
+        run: npm test
