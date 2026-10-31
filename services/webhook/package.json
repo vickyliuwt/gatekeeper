@@ -12,6 +12,7 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1158.0",
     "@aws-sdk/client-sqs": "^3.1158.0",
+    "@aws-sdk/client-ssm": "^3.1161.0",
     "@aws-sdk/lib-dynamodb": "^3.1158.0",
     "express": "^4.22.3"
   }
