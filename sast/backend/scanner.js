@@ -140,7 +140,7 @@ const vulnerabilityRules = [
       { regex: /createHash\s*\(\s*['"]sha1['"]\s*\)/gi, desc: 'SHA1 hash usage' },
       { regex: /crypto\.createCipher\s*\(/g, desc: 'Deprecated createCipher usage' },
       { regex: /crypto\.createDecipher\s*\(/g, desc: 'Deprecated createDecipher usage' },
-      { regex: /DES|RC4|RC2|Blowfish/gi, desc: 'Weak encryption algorithm' }
+      { regex: /\b(?:3DES|DES|RC4|RC2|Blowfish)\b/g, desc: 'Weak encryption algorithm' }
     ],
     message: 'Weak cryptographic algorithm detected. Use stronger alternatives like SHA256 or AES-256.'
   }
