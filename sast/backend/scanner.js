@@ -55,7 +55,8 @@ const vulnerabilityRules = [
       { regex: /fs\.(readFile|readFileSync|writeFile|writeFileSync|unlink|unlinkSync)\s*\(\s*req\.(body|query|params)/gi, desc: 'User input directly in file operation' },
       { regex: /fs\.(readFile|readFileSync|writeFile|writeFileSync)\s*\([^)]*\+\s*req\./gi, desc: 'User input concatenated in file path' },
       { regex: /path\.join\s*\([^)]*req\.(body|query|params)/gi, desc: 'User input in path.join()' },
-      { regex: /['"][^'"]*\.\.\/[^'"]*['"]/g, desc: 'Path traversal sequence detected' }
+      { regex: /['"][^'"]*\.\.\/[^'"]*['"]\s*\+|\+\s*['"][^'"]*\.\.\/[^'"]*['"]/g, desc: 'Path traversal sequence in concatenated path' },
+      { regex: /['"][^'"]*\.\.\/[^'"]*(?:etc\/(?:passwd|shadow|hosts)|\.ssh\/|\.aws\/|proc\/self|windows\/system32)[^'"]*['"]/gi, desc: 'Path traversal to a sensitive system path' }
     ],
     message: 'Potential path traversal vulnerability. Validate and sanitize file paths.'
   },
