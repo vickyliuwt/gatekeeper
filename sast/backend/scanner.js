@@ -110,7 +110,7 @@ const vulnerabilityRules = [
     severity: 'HIGH',
     patterns: [
       { regex: /\beval\s*\(/g, desc: 'Usage of eval()' },
-      { regex: /\bexec\s*\(/g, desc: 'Usage of exec()' },
+      { regex: /(?<![.\w])exec\s*\(/g, desc: 'Usage of exec()' },
       { regex: /\bexecSync\s*\(/g, desc: 'Usage of execSync()' },
       { regex: /\bspawn\s*\([^)]*\$\{/g, desc: 'Unvalidated input in spawn()' },
       { regex: /new\s+Function\s*\(/g, desc: 'Usage of new Function()' },
