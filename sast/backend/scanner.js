@@ -75,9 +75,9 @@ const vulnerabilityRules = [
     name: 'Sensitive Data Logging',
     severity: 'MEDIUM',
     patterns: [
-      { regex: /console\.(log|info|debug|warn|error)\s*\([^)]*(?:password|passwd|pwd)[^)]*\)/gi, desc: 'Logging password' },
-      { regex: /console\.(log|info|debug|warn|error)\s*\([^)]*(?:token|secret|apikey|api_key)[^)]*\)/gi, desc: 'Logging sensitive token/key' },
-      { regex: /console\.(log|info|debug|warn|error)\s*\([^)]*(?:creditcard|credit_card|ssn|social_security)[^)]*\)/gi, desc: 'Logging sensitive personal data' }
+      { regex: /console\.(log|info|debug|warn|error)\s*\([^)\n]{0,200}(?:password|passwd|pwd)[^)\n]{0,200}\)/gi, desc: 'Logging password' },
+      { regex: /console\.(log|info|debug|warn|error)\s*\([^)\n]{0,200}(?:token|secret|apikey|api_key)[^)\n]{0,200}\)/gi, desc: 'Logging sensitive token/key' },
+      { regex: /console\.(log|info|debug|warn|error)\s*\([^)\n]{0,200}(?:creditcard|credit_card|ssn|social_security)[^)\n]{0,200}\)/gi, desc: 'Logging sensitive personal data' }
     ],
     message: 'Sensitive data may be logged. Remove or mask sensitive information in logs.'
   },
