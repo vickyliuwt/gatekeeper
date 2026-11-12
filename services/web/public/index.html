@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Paste JavaScript and run the same security check that guards GateKeeper pull requests.">
+<title>Paste and Scan | GateKeeper</title>
+<link rel="icon" href="data:,">
+<!--STYLE-->
+</head>
+<body>
+<a class="skip" href="#code">Skip to the code box</a>
+<header class="masthead">
+  <div class="masthead-inner">
+    <p class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 36" aria-hidden="true" focusable="false"><path d="M16 1 30 6v11c0 9-6 15-14 18C8 32 2 26 2 17V6z" fill="currentColor"/><path d="m9.5 18 4.5 4.5L23 13" fill="none" stroke="#14213d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="wordmark">GateKeeper</span>
+    </p>
+    <p class="tagline">Paste JavaScript and run the same security check that guards our pull requests.</p>
+  </div>
+</header>
+
+<main class="desk">
+  <section class="intake" aria-labelledby="intake-title">
+    <h1 id="intake-title">Paste and scan</h1>
+    <form id="scan-form" novalidate>
+      <div class="field">
+        <div class="label-row">
+          <label for="code">JavaScript to check</label>
+          <span class="samples">
+            <button type="button" class="text-button" id="load-risky">Load a risky example</button>
+            <button type="button" class="text-button" id="load-clean">Load a clean example</button>
+          </span>
+        </div>
+        <textarea id="code" name="code" rows="16" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="size-hint"></textarea>
+        <p class="hint" id="size-hint">0.0 KB of 100 KB</p>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="filename">File name</label>
+          <input id="filename" name="filename" value="snippet.js" maxlength="100" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field">
+          <label for="access">Access code</label>
+          <input id="access" name="access" type="password" autocomplete="off">
+        </div>
+      </div>
+      <p class="form-error" id="form-error" role="alert" hidden></p>
+      <button type="submit" class="primary" id="scan-btn">Scan code</button>
+      <p class="fine-print">Pasted code is deleted after one day. Only people with the link can open your report, and any hardcoded credential in it is masked.</p>
+    </form>
+  </section>
+
+  <section class="slip" aria-labelledby="slip-title">
+    <h2 id="slip-title">Inspection slip</h2>
+    <div id="slip-empty" class="slip-empty">
+      <p>Your report appears here after a scan.</p>
+      <button type="button" class="quiet-button" id="last-scan" hidden>Open my last scan</button>
+    </div>
+    <div id="slip-status" class="slip-status" hidden>
+      <p class="status-line"><span class="pulse" aria-hidden="true"></span><span id="status-text">Waiting for the first update.</span></p>
+      <p class="status-clock" id="status-clock">0 s</p>
+      <button type="button" class="quiet-button" id="check-again" hidden>Check again</button>
+    </div>
+    <div id="slip-result" class="slip-result" hidden></div>
+    <div id="slip-problem" class="slip-problem" hidden>
+      <p id="problem-text"></p>
+    </div>
+    <p class="visually-hidden" id="live" aria-live="polite"></p>
+  </section>
+</main>
+
+<section class="recent" aria-labelledby="recent-title">
+  <div class="recent-head">
+    <h2 id="recent-title">Recent pull request checks</h2>
+    <button type="button" class="quiet-button" id="refresh-recent">Refresh</button>
+  </div>
+  <p class="recent-sub">From the demo repository. Pasted code never shows up here.</p>
+  <table class="recent-table" id="recent-table" hidden>
+    <thead>
+      <tr><th scope="col">Pull request</th><th scope="col">Commit</th><th scope="col">Result</th><th scope="col">Findings</th><th scope="col">When</th><th scope="col"><span class="visually-hidden">Report</span></th></tr>
+    </thead>
+    <tbody id="recent-body"></tbody>
+  </table>
+  <p class="recent-note" id="recent-note">Loading recent checks.</p>
+</section>
+
+<footer class="footer">
+  <p>GateKeeper is a CS6620 Fall 2026 project by Weiting Liu, Yuyao Xu and Lingsong Qin. Scans run on AWS Lambda with the course SAST scanner.</p>
+</footer>
+
+<template id="sample-risky">// demo.js: three common mistakes
+const pwd = "admin123";
+const dbHost = "192.168.1.10";
+const sessionId = Math.random().toString(36);
+</template>
+<template id="sample-clean">// cart.js: adds up a shopping cart
+export function cartTotal(items) {
+  return items.reduce((sum, item) => sum + item.price * item.qty, 0);
+}
+</template>
+<!--SCRIPT-->
+</body>
+</html>

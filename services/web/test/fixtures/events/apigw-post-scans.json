@@ -1,0 +1,32 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /scans",
+  "rawPath": "/scans",
+  "rawQueryString": "",
+  "headers": {
+    "accept": "application/json",
+    "host": "abc123.execute-api.us-east-1.amazonaws.com",
+    "x-forwarded-proto": "https",
+    "content-type": "application/json",
+    "x-demo-code": "demo-1234"
+  },
+  "requestContext": {
+    "accountId": "123456789012",
+    "apiId": "abc123",
+    "domainName": "abc123.execute-api.us-east-1.amazonaws.com",
+    "http": {
+      "method": "POST",
+      "path": "/scans",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "203.0.113.10",
+      "userAgent": "curl/8.9.1"
+    },
+    "requestId": "Example-request-id=",
+    "routeKey": "POST /scans",
+    "stage": "$default",
+    "time": "02/Nov/2026:15:10:00 +0000",
+    "timeEpoch": 1793632200000
+  },
+  "body": "{\"code\":\"const password = \\\"admin123\\\";\\n\",\"filename\":\"snippet.js\"}",
+  "isBase64Encoded": false
+}

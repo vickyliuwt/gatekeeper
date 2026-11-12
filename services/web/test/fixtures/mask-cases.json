@@ -1,0 +1,140 @@
+{
+  "rule": "README.md, Masking (rules 1 to 3). Part B's worker and Part C's gk-results both run these vectors in their unit tests.",
+  "text": [
+    {
+      "in": "const apiKey = \"sk_live_FAKEdemo1234\";",
+      "out": "const apiKey = \"sk_l****\";"
+    },
+    {
+      "in": "const password = 'admin123';",
+      "out": "const password = 'admi****';"
+    },
+    {
+      "in": "pwd: \"abcd\"",
+      "out": "pwd: \"****\""
+    },
+    {
+      "in": "const token = `ghp_FAKEdemo00001234`;",
+      "out": "const token = `ghp_****`;"
+    },
+    {
+      "in": "login(\"admin\", \"hunter2hunter\");",
+      "out": "login(\"admi****\", \"hunt****\");"
+    },
+    {
+      "in": "const secretKey = \"abcdefghijklmnopqrst...",
+      "out": "const secretKey = \"abcd****"
+    },
+    {
+      "in": "const empty = \"\";",
+      "out": "const empty = \"\";"
+    }
+  ],
+  "reports": [
+    {
+      "name": "a finding on the same line as a secret is masked too",
+      "in": [
+        {
+          "id": "HARDCODED_SECRET",
+          "file": "a.js",
+          "line": 3,
+          "evidence": "const password = \"admin123\"; eval(input);"
+        },
+        {
+          "id": "INSECURE_FUNCTION",
+          "file": "a.js",
+          "line": 3,
+          "evidence": "const password = \"admin123\"; eval(input);"
+        },
+        {
+          "id": "HARDCODED_IP",
+          "file": "a.js",
+          "line": 5,
+          "evidence": "const host = \"10.0.0.5\";"
+        }
+      ],
+      "out": [
+        {
+          "id": "HARDCODED_SECRET",
+          "file": "a.js",
+          "line": 3,
+          "evidence": "const password = \"admi****\"; eval(input);"
+        },
+        {
+          "id": "INSECURE_FUNCTION",
+          "file": "a.js",
+          "line": 3,
+          "evidence": "const password = \"admi****\"; eval(input);"
+        },
+        {
+          "id": "HARDCODED_IP",
+          "file": "a.js",
+          "line": 5,
+          "evidence": "const host = \"10.0.0.5\";"
+        }
+      ]
+    },
+    {
+      "name": "a secret in another file does not mask this file",
+      "in": [
+        {
+          "id": "HARDCODED_SECRET",
+          "file": "a.js",
+          "line": 1,
+          "evidence": "const pwd = \"letmein99\";"
+        },
+        {
+          "id": "HARDCODED_IP",
+          "file": "b.js",
+          "line": 1,
+          "evidence": "const ip = \"10.1.2.3\";"
+        }
+      ],
+      "out": [
+        {
+          "id": "HARDCODED_SECRET",
+          "file": "a.js",
+          "line": 1,
+          "evidence": "const pwd = \"letm****\";"
+        },
+        {
+          "id": "HARDCODED_IP",
+          "file": "b.js",
+          "line": 1,
+          "evidence": "const ip = \"10.1.2.3\";"
+        }
+      ]
+    },
+    {
+      "name": "a token shape is masked in every finding, even outside quotes",
+      "in": [
+        {
+          "id": "INSECURE_FUNCTION",
+          "file": "c.js",
+          "line": 2,
+          "evidence": "exec(`curl -u AKIAIOSFODNN7EXAMPLE x`);"
+        },
+        {
+          "id": "SENSITIVE_DATA_LOG",
+          "file": "c.js",
+          "line": 4,
+          "evidence": "console.log(token, ghp_FAKEdemo00001234);"
+        }
+      ],
+      "out": [
+        {
+          "id": "INSECURE_FUNCTION",
+          "file": "c.js",
+          "line": 2,
+          "evidence": "exec(`curl -u AKIA**** x`);"
+        },
+        {
+          "id": "SENSITIVE_DATA_LOG",
+          "file": "c.js",
+          "line": 4,
+          "evidence": "console.log(token, ghp_****);"
+        }
+      ]
+    }
+  ]
+}

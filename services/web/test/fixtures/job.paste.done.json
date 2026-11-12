@@ -1,0 +1,21 @@
+{
+  "jobId": "paste-3f2a9c4e-8b1d-4e6f-9a7b-2c5d8e1f0a3b",
+  "source": "paste",
+  "filename": "snippet.js",
+  "pastedKey": "pasted/paste-3f2a9c4e-8b1d-4e6f-9a7b-2c5d8e1f0a3b.js",
+  "phase": "DONE",
+  "attempt": 1,
+  "traceId": "0b6f3c2a-5d4e-4f1a-8c9b-7e6d5c4b3a21",
+  "createdAt": "2026-11-02T15:10:00.000Z",
+  "updatedAt": "2026-11-02T15:10:04.000Z",
+  "expiresAt": 1793718600,
+  "leaseOwner": "example-lambda-request-id",
+  "leaseUntil": 1793632291,
+  "verdict": "FAIL",
+  "counts": {
+    "high": 1,
+    "medium": 0,
+    "low": 0
+  },
+  "reportKey": "reports/paste-3f2a9c4e-8b1d-4e6f-9a7b-2c5d8e1f0a3b.json"
+}
