@@ -8,13 +8,26 @@ variable "lock_reports_to_worker" {
 
 data "aws_caller_identity" "core" {}
 
-resource "aws_s3_bucket" "data" {
-  bucket        = "gk-data-${data.aws_caller_identity.core.account_id}"
-  force_destroy = true
+locals {
+  data_bucket_name = "gk-data-${data.aws_caller_identity.core.account_id}"
+  data_bucket_arn  = "arn:aws:s3:::${local.data_bucket_name}"
+}
+
+resource "terraform_data" "data_bucket" {
+  input = local.data_bucket_name
+
+  provisioner "local-exec" {
+    command = "aws s3api head-bucket --bucket ${self.input} --region us-east-1 || aws s3api create-bucket --bucket ${self.input} --region us-east-1"
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = "aws s3 rb s3://${self.input} --force --region us-east-1"
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "data" {
-  bucket                  = aws_s3_bucket.data.id
+  bucket                  = terraform_data.data_bucket.output
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -22,7 +35,7 @@ resource "aws_s3_bucket_public_access_block" "data" {
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
-  bucket = aws_s3_bucket.data.id
+  bucket = terraform_data.data_bucket.output
 
   rule {
     apply_server_side_encryption_by_default {
@@ -32,7 +45,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "data" {
-  bucket = aws_s3_bucket.data.id
+  bucket = terraform_data.data_bucket.output
 
   rule {
     id     = "reports-30-days"
@@ -66,7 +79,7 @@ data "aws_iam_policy_document" "data" {
     sid       = "DenyInsecureTransport"
     effect    = "Deny"
     actions   = ["s3:*"]
-    resources = [aws_s3_bucket.data.arn, "${aws_s3_bucket.data.arn}/*"]
+    resources = [local.data_bucket_arn, "${local.data_bucket_arn}/*"]
 
     principals {
       type        = "*"
@@ -87,7 +100,7 @@ data "aws_iam_policy_document" "data" {
       sid       = "OnlyWorkerWritesReports"
       effect    = "Deny"
       actions   = ["s3:PutObject"]
-      resources = ["${aws_s3_bucket.data.arn}/reports/*"]
+      resources = ["${local.data_bucket_arn}/reports/*"]
 
       principals {
         type        = "*"
@@ -104,17 +117,17 @@ data "aws_iam_policy_document" "data" {
 }
 
 resource "aws_s3_bucket_policy" "data" {
-  bucket     = aws_s3_bucket.data.id
+  bucket     = terraform_data.data_bucket.output
   policy     = data.aws_iam_policy_document.data.json
   depends_on = [aws_s3_bucket_public_access_block.data]
 }
 
 output "data_bucket_name" {
-  value = aws_s3_bucket.data.bucket
+  value = terraform_data.data_bucket.output
 }
 
 output "data_bucket_arn" {
-  value = aws_s3_bucket.data.arn
+  value = local.data_bucket_arn
 }
 
 output "jobs_table_arn" {
