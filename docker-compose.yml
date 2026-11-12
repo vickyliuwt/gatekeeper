@@ -1,0 +1,70 @@
+# Local Lambda emulators for the three images. Every container listens on 8080 inside:
+#   9001 webhook (A, profile webhook)   9002 worker (B, profile worker)
+#   9003 web image as gk-results and 9004 web image as gk-submit (C, profile web)
+# Start ONLY your own part, from the repo root (PowerShell or bash):
+#   docker compose --profile web up --build -d
+#   node services/web/scripts/invoke-local.js        (Part C checks; add --aws, see below)
+#   docker compose --profile web down
+# Calls that reach AWS need keys in THIS window and a deployed core:
+#   set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN in this window first
+# Without keys the page (GET /), routing and input checks still work.
+x-aws-env: &aws-env
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+  AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+
+services:
+  webhook:
+    build: ./services/webhook
+    profiles: ["webhook"]
+    platform: linux/amd64
+    ports:
+      - "9001:8080"
+    environment:
+      <<: *aws-env
+      ALLOWED_REPO: ${ALLOWED_REPO:-example/gatekeeper-demo}
+      JOBS_TABLE_NAME: gk-jobs
+      JOBS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/${ACCOUNT_ID:-000000000000}/gk-jobs
+      WEBHOOK_SECRET_PARAM: /gatekeeper/webhook-secret
+
+  worker:
+    build: ./services/worker
+    profiles: ["worker"]
+    platform: linux/amd64
+    ports:
+      - "9002:8080"
+    environment:
+      <<: *aws-env
+      ALLOWED_REPO: ${ALLOWED_REPO:-example/gatekeeper-demo}
+      JOBS_TABLE_NAME: gk-jobs
+      DATA_BUCKET_NAME: gk-data-${ACCOUNT_ID:-000000000000}
+      GITHUB_TOKEN_PARAM: /gatekeeper/github-token
+      PAGE_URL: ${PAGE_URL:-http://localhost:9300/}
+
+  web-results:
+    build: ./services/web
+    profiles: ["web"]
+    platform: linux/amd64
+    command: ["src/lambda.resultsHandler"]
+    ports:
+      - "9003:8080"
+    environment:
+      <<: *aws-env
+      JOBS_TABLE_NAME: gk-jobs
+      DATA_BUCKET_NAME: gk-data-${ACCOUNT_ID:-000000000000}
+      ALLOWED_REPO: ${ALLOWED_REPO:-vickyliuwt/gatekeeper-demo}
+
+  web-submit:
+    build: ./services/web
+    profiles: ["web"]
+    platform: linux/amd64
+    command: ["src/lambda.submitHandler"]
+    ports:
+      - "9004:8080"
+    environment:
+      <<: *aws-env
+      JOBS_TABLE_NAME: gk-jobs
+      JOBS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/${ACCOUNT_ID:-000000000000}/gk-jobs
+      DATA_BUCKET_NAME: gk-data-${ACCOUNT_ID:-000000000000}
+      DEMO_CODE_PARAM: /gatekeeper/demo-code

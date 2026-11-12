@@ -5,6 +5,8 @@ root=$(git rev-parse --show-toplevel)
 cd "$root"
 
 region=us-east-1
+# Both applies pin enable_intake=true, so an infra/gk.auto.tfvars.json written by scripts/gk/deploy.mjs
+# in this checkout can never turn Part A off in this account.
 repo=${1:-}
 if [[ ! "$repo" =~ ^[[:alnum:]_.-]+/[[:alnum:]_.-]+$ ]]; then
   echo "Usage: scripts/deploy.sh OWNER/REPO" >&2
@@ -56,6 +58,7 @@ if [[ "$has_ecr" != "True" ]]; then
   placeholder=$(printf 'sha256:%064d' 0)
   terraform -chdir=infra apply \
     -target=aws_ecr_repository.webhook \
+    -var="enable_intake=true" \
     -var="allowed_repo=$repo" \
     -var="webhook_image_digest=$placeholder"
 fi
@@ -64,6 +67,7 @@ digest=$(./scripts/ensure-webhook-image.sh)
 printf 'Deploying webhook image %s\n' "$digest"
 
 terraform -chdir=infra apply \
+  -var="enable_intake=true" \
   -var="allowed_repo=$repo" \
   -var="webhook_image_digest=$digest"
 
