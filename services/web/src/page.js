@@ -1,6 +1,6 @@
-// Builds the Paste and Scan page once per cold start (Plan B: gk-results serves it at GET /).
-// style.css, logic.js and app.js are inlined into index.html, and the Content-Security-Policy
-// allows exactly those inline blocks by their SHA-256 hash. One route, no CORS, no web bucket.
+// builds the page once per cold start. gk-results serves it at GET /
+// (no CloudFront in Learner Lab). style.css, logic.js, app.js go inline
+// the CSP allows exactly those inline blocks by SHA-256 hash. no CORS
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -21,7 +21,7 @@ export function renderPage({ template, style, scripts }) {
     throw new Error('index.html needs the <!--STYLE--> and <!--SCRIPT--> markers');
   }
 
-  // Replacer functions keep "$" characters in the assets literal.
+  // replacer functions keep any "$" in the files as is
   const page = template
     .replace('<!--STYLE-->', () => `<style>${style}</style>`)
     .replace('<!--SCRIPT-->', () => `<script>${script}</script>`);

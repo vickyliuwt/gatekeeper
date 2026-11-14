@@ -1,11 +1,10 @@
-// Local development server.
-// It runs the REAL page and the REAL submit and results code. DynamoDB, S3, SQS and the
-// worker are replaced by memory, so no AWS account is needed.
+// local server for my laptop, no AWS needed
+// real page + real submit/results code. DynamoDB, S3, SQS + worker are in memory
 //   cd services/web
-//   npm run dev          then open http://127.0.0.1:9300   (access code: demo-1234)
-// Words you can put in the pasted code to test the page:
+//   npm run dev   then open http://127.0.0.1:9300 (access code demo-1234)
+// test words to put in the pasted code:
 //   SIMULATE_RETRY       try 1 fails, try 2 passes (the page shows "try 2 of 5")
-//   SIMULATE_SLOW        stays RUNNING for 3 minutes, so the page stops polling at 2 minutes
+//   SIMULATE_SLOW        stays RUNNING 3 min, so the page stops polling at 2 min
 //   SIMULATE_INCOMPLETE  ends INCOMPLETE with no report
 //   SIMULATE_503         POST /scans answers 503 queue_unavailable
 import express from 'express';
@@ -19,9 +18,9 @@ import { createMemoryBlobs, createMemoryQueue, createMemoryStore } from './memor
 import { loadPage } from './page.js';
 import { createResults, resultsRoutes } from './results.js';
 import { createSubmit } from './submit.js';
-// True when node started this file. Windows can report the same path with another drive-letter
-// case (c: or C:), a junction or a short 8.3 name, so compare real paths case-insensitively there,
-// and the file names last.
+// true when node started this file
+// windows may give the same path in other letter case,
+// so compare real paths (ignore case), then file names
 function isMainModule(metaUrl) {
   if (!process.argv[1]) return false;
   const same = (a, b) => (process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b);
@@ -38,7 +37,7 @@ const SCANNER_PATH = join(REPO_ROOT, 'sast', 'backend', 'scanner.js');
 const FIXTURES_DIR = join(HERE, '..', 'test', 'fixtures');
 const RISKY_WORDS = /password|secret|api[_-]?key|token/i;
 
-// Uses the real course scanner when the repo has it, so local reports look like real ones.
+// use the real course scanner if the repo has it, so local reports look real
 async function loadScanner() {
   if (!existsSync(SCANNER_PATH)) return null;
   try {
@@ -79,7 +78,7 @@ function readFixture(name) {
   return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null;
 }
 
-// Three finished PR scans (2 FAIL, 1 PASS), so the recent list has rows.
+// 3 done PR scans (2 FAIL, 1 PASS) so the recent list is not empty
 async function seedPrScans({ store, blobs, allowedRepo }) {
   const base = readFixture('report.pr.example.json') ?? { findings: [], scannedFiles: [], skippedFiles: [] };
   for (let i = 0; i < 3; i += 1) {
@@ -111,7 +110,7 @@ async function seedPrScans({ store, blobs, allowedRepo }) {
   }
 }
 
-// Plays Part B's worker in memory, following the job phases in README.md.
+// fake worker in memory (plays Part B): QUEUED -> RUNNING -> DONE
 function startLocalWorker({ store, blobs, queue, scanCode, speed, log }) {
   let stopped = false;
   const wait = (ms) => new Promise((resolve) => {
@@ -179,7 +178,7 @@ function startLocalWorker({ store, blobs, queue, scanCode, speed, log }) {
   };
 }
 
-// Like the API Gateway route limit on POST /scans: burst 5, then 1 per second.
+// like the API Gateway limit on POST /scans: burst 5, then 1 per second
 function createRateLimiter({ burst, perSecond }) {
   let tokens = burst;
   let last = Date.now();
@@ -247,7 +246,7 @@ export async function createLocalApp({
     }
   };
 
-  // Same per-route limits as API Gateway (README.md, "API"). Off in the unit tests, on for npm run dev.
+  // same per-route limits as API Gateway. off in unit tests, on for npm run dev
   const limit = (burst, perSecond) => (routeLimits ? createRateLimiter({ burst, perSecond }) : (req, res, next) => next());
   app.get('/', limit(10, 5), run('GET /', routes['GET /']));
   app.post('/scans', createRateLimiter({ burst: 5, perSecond: 1 }), express.text({ type: () => true, limit: '1mb' }), run('POST /scans', submit));

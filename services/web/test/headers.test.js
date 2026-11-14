@@ -1,4 +1,4 @@
-// The page must pass the course pentest tool's SECURITY_HEADERS test (pentest/backend/tester.js).
+// page must pass the course pentest SECURITY_HEADERS test (pentest/backend)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { html } from '../src/http.js';

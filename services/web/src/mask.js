@@ -1,12 +1,12 @@
-// Masking rule (README.md, "Masking"):
-//   1. In a HARDCODED_SECRET finding, every quoted text keeps its first 4 characters and the rest
-//      becomes ****. A text of 4 characters or less becomes ****. Empty quotes stay as they are.
-//   2. A finding on the same file and line as a HARDCODED_SECRET finding is masked the same way,
-//      because the course scanner copies the WHOLE line into evidence.
-//   3. Known token shapes (sk_live_, ghp_, AKIA...) are masked in every finding.
-//   4. A served report keeps only the fields in REPORT_FIELDS and FINDING_FIELDS (an allow-list).
-//   An unclosed quote (the scanner cuts long lines at 100 characters) is masked to the end.
-// Masking twice gives the same text, so the worker and gk-results can both apply it.
+// masking rules (the page is public):
+//   1. HARDCODED_SECRET: each quoted text keeps first 4 chars, rest -> ****
+//      4 chars or less -> ****. empty quotes stay empty
+//   2. other findings on the same file + line are masked the same way
+//      (the course scanner copies the whole line into evidence)
+//   3. known token shapes (sk_live_, ghp_, AKIA...) are masked in every finding
+//   4. a served report keeps only REPORT_FIELDS and FINDING_FIELDS (allow-list)
+//   quote not closed (scanner cuts lines at 100 chars) -> masked to the end
+// masking twice = same text, so the worker and gk-results can both do it
 const QUOTED = /(['"`])((?:\\.|(?!\1)[^\\])*)(\1|$)/g;
 const TOKEN_SHAPES = [
   /sk_(?:live|test)_[A-Za-z0-9]{6,}/g,
@@ -51,20 +51,20 @@ export function maskFindings(findings) {
   return list.map((f) => maskFinding(f, secretLines));
 }
 
-// Kept for older callers and tests: the text rule for one secret finding.
+// old helper, kept for tests: the text rule for one secret finding
 export function maskEvidenceText(text, { quoted = false } = {}) {
   return quoted ? maskSecretText(text) : maskTokens(text);
 }
 
 export const MAX_FINDINGS = 500;
 
-// The page is public, so a report leaves gk-results with these fields only. Anything else a worker
-// might add (raw scanner output, file contents, debug data) is dropped instead of passed through.
+// public page: a report leaves gk-results with these fields only
+// anything else a worker adds (raw output, file text, debug data) gets dropped
 export const REPORT_FIELDS = Object.freeze([
   'jobId', 'source', 'repo', 'prNumber', 'headSha', 'scannerVersion', 'scannedAt',
   'verdict', 'counts', 'scannedFiles', 'skippedFiles',
 ]);
-// Exactly what the course scanner's scanCode() returns for one finding.
+// the 9 fields the course scanner's scanCode() gives for one finding
 export const FINDING_FIELDS = Object.freeze(['id', 'name', 'severity', 'description', 'message', 'file', 'line', 'column', 'evidence']);
 
 function pick(source, fields) {
@@ -73,8 +73,8 @@ function pick(source, fields) {
   return out;
 }
 
-// The course scanner's own HTTP server calls the list "vulnerabilities". A report saved in that shape
-// is shown the same way, and masked the same way, as one that uses "findings".
+// the scanner's own HTTP server calls the list "vulnerabilities"
+// that shape is shown and masked the same way as "findings"
 export function reportFindings(report) {
   if (Array.isArray(report?.findings)) return report.findings;
   if (Array.isArray(report?.vulnerabilities)) return report.vulnerabilities;

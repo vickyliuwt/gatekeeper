@@ -1,4 +1,5 @@
-// A served report keeps only known fields, so nothing a worker adds by mistake reaches the public page.
+// served report keeps only known fields, so an extra worker field
+// never reaches the public page
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FINDING_FIELDS, REPORT_FIELDS, maskReport } from '../src/mask.js';

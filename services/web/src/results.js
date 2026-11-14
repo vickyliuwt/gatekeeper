@@ -1,6 +1,5 @@
-// gk-results: GET /, GET /scans, GET /scans/{jobId}, GET /scans/{jobId}/report (README.md, "API").
-// Read only: it holds no secret and never writes, so the one route group open without a
-// secret cannot change anything.
+// gk-results: GET /, GET /scans, GET /scans/{jobId}, GET /scans/{jobId}/report
+// read only: no secret, no writes, so the open routes can't change anything
 import { fail, html, json } from './http.js';
 import { isJobId } from './validate.js';
 import { maskReport } from './mask.js';
@@ -8,7 +7,7 @@ import { maskReport } from './mask.js';
 export const MAX_ATTEMPTS = 5;
 const RECENT_LIMIT = 20;
 
-// The small object the page polls. verdict and counts stay null until the job is DONE.
+// the small object the page polls. verdict and counts stay null until DONE
 export function toStatus(job) {
   const done = job.phase === 'DONE';
   const status = {

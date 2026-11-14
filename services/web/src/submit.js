@@ -1,5 +1,5 @@
-// gk-submit: POST /scans (README.md, "API"). Saves pasted code and queues one paste job.
-// Order of work: check the access code, check the input, save code to S3, create the job, queue it.
+// gk-submit: POST /scans. saves the pasted code, makes one paste job, queues it
+// order: access code -> input check -> code to S3 -> job -> queue
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { fail, json } from './http.js';
 import { MAX_BODY_BYTES, MAX_CODE_BYTES, byteLength, normalizeFilename } from './validate.js';
@@ -10,7 +10,7 @@ function digest(text) {
   return createHash('sha256').update(String(text), 'utf8').digest();
 }
 
-// Compares in constant time. Both sides are hashed first, so the lengths always match.
+// constant time compare. both sides hashed first, so lengths always match
 export function accessCodeMatches(given, expected) {
   if (typeof expected !== 'string' || expected.length === 0) {
     throw new Error('The access code is not configured');

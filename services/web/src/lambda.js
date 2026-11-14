@@ -1,6 +1,6 @@
-// Lambda entry points of the gatekeeper/web image (one image, two functions).
-//   gk-results: handler src/lambda.resultsHandler (GET /, GET /scans, GET /scans/{jobId}, GET /scans/{jobId}/report)
-//   gk-submit:  handler src/lambda.submitHandler  (POST /scans)
+// Lambda entry points. one image, two functions:
+//   gk-results: src/lambda.resultsHandler   (the 4 GET routes)
+//   gk-submit:  src/lambda.submitHandler    (POST /scans)
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { S3Client } from '@aws-sdk/client-s3';

@@ -1,4 +1,6 @@
-
+# dashboard gk-web: Lambda calls, errors, p95, API 4xx/5xx, queue age
+# + 2 log tables (per route, per error)
+# queue name = last part of the queue URL
 locals {
   jobs_queue_name = regex("[^/]+$", var.jobs_queue_url)
 }

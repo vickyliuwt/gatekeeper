@@ -1,5 +1,5 @@
-// Lambda adapter for API Gateway HTTP API events (payload format 2.0).
-// It turns the event into a plain request, calls the route, and never leaks a stack trace.
+// API Gateway HTTP API event (payload 2.0) -> plain request -> route
+// never sends a stack trace back
 import { fail } from './http.js';
 
 export function toRequest(event) {

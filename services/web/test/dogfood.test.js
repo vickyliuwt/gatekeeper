@@ -1,5 +1,5 @@
-// Dogfooding: our own page and Lambda code must pass our own gate (0 HIGH findings),
-// using the course scanner that the worker runs on pull requests (sast/backend/scanner.js).
+// dogfood: our own page + Lambda code must pass our own gate (0 HIGH)
+// same course scanner the worker runs on pull requests (sast/backend/scanner.js)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';

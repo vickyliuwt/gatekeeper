@@ -1,4 +1,4 @@
-
+# Part C module: gk-submit + gk-results (one image), logs, routes, alarm
 locals {
   submit_name  = "gk-submit"
   results_name = "gk-results"
@@ -16,6 +16,7 @@ locals {
   }
 }
 
+# log groups made by Terraform, so destroy removes them too
 resource "aws_cloudwatch_log_group" "submit" {
   name              = "/aws/lambda/${local.submit_name}"
   retention_in_days = var.log_retention_days
@@ -26,6 +27,7 @@ resource "aws_cloudwatch_log_group" "results" {
   retention_in_days = var.log_retention_days
 }
 
+# gk-submit: POST /scans, writes only
 resource "aws_lambda_function" "submit" {
   function_name = local.submit_name
   description   = "Part C: POST /scans saves pasted code to S3, creates the job and queues it."
@@ -50,6 +52,7 @@ resource "aws_lambda_function" "submit" {
   depends_on = [aws_cloudwatch_log_group.submit]
 }
 
+# gk-results: the 4 GET routes, read only (default CMD of the image)
 resource "aws_lambda_function" "results" {
   function_name = local.results_name
   description   = "Part C: GET / serves the page; GET /scans routes read jobs and reports. Read only."
@@ -73,6 +76,7 @@ resource "aws_lambda_function" "results" {
   depends_on = [aws_cloudwatch_log_group.results]
 }
 
+# API Gateway -> Lambda (payload 2.0)
 resource "aws_apigatewayv2_integration" "submit" {
   api_id                 = var.api_id
   integration_type       = "AWS_PROXY"
@@ -89,6 +93,7 @@ resource "aws_apigatewayv2_integration" "results" {
   payload_format_version = "2.0"
 }
 
+# only this API may call gk-submit, and only POST /scans
 resource "aws_lambda_permission" "submit_api" {
   statement_id  = "AllowSubmitRoute"
   action        = "lambda:InvokeFunction"
@@ -97,7 +102,7 @@ resource "aws_lambda_permission" "submit_api" {
   source_arn    = "${var.api_execution_arn}/$default/POST/scans"
 }
 
-# "GET*" (not "GET/*") also matches the root route GET /, with or without a trailing slash. Still GET only, this API only.
+# only GET routes of this API may call gk-results ("GET*" also covers GET /)
 resource "aws_lambda_permission" "results_api" {
   statement_id  = "AllowResultsGetRoutes"
   action        = "lambda:InvokeFunction"
@@ -106,6 +111,7 @@ resource "aws_lambda_permission" "results_api" {
   source_arn    = "${var.api_execution_arn}/$default/GET*"
 }
 
+# the 5 Part C routes: 1 POST + 4 GET. any other path gets 404
 resource "aws_apigatewayv2_route" "submit" {
   api_id    = var.api_id
   route_key = "POST /scans"
@@ -124,9 +130,8 @@ resource "aws_apigatewayv2_route" "results" {
   depends_on = [aws_lambda_permission.results_api]
 }
 
-# An alarm that judges 1 minute at a time flaps and sends one email per flap.
-# "1 of 5" fires on the first error and clears only after 5 clean minutes. Handled errors are 4xx/5xx JSON
-# replies, not Lambda errors, so any Lambda error here is a real bug.
+# alarm: first Lambda error fires it, 5 clean min clear it (1 problem = 1 email)
+# normal 4xx/5xx JSON replies are not Lambda errors, so an alarm here = a real bug
 resource "aws_cloudwatch_metric_alarm" "web_errors" {
   count = var.enable_alarm ? 1 : 0
 

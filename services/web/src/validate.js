@@ -1,4 +1,4 @@
-// Input rules shared by gk-submit and gk-results (README.md: "API" and "Job item").
+// input rules for gk-submit and gk-results
 export const MAX_CODE_BYTES = 100 * 1024;
 export const MAX_BODY_BYTES = 600 * 1024;
 export const DEFAULT_FILENAME = 'snippet.js';
@@ -8,12 +8,12 @@ const PASTE_JOB_ID = /^paste-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]
 const FILE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 const FILE_EXTENSION = /\.(?:js|mjs|cjs)$/;
 
-// A job ID is either pr-<repoId>-<40 hex> or paste-<UUID v4>. Anything else is never looked up.
+// job ID = pr-<repoId>-<40 hex> or paste-<UUID v4>. anything else: no lookup
 export function isJobId(value) {
   return typeof value === 'string' && (PR_JOB_ID.test(value) || PASTE_JOB_ID.test(value));
 }
 
-// Returns the file name to store, or null when the name breaks the rule.
+// gives back the file name to save, or null if the name breaks the rule
 export function normalizeFilename(value) {
   if (value === undefined || value === null || value === '') return DEFAULT_FILENAME;
   if (typeof value !== 'string') return null;

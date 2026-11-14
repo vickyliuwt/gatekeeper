@@ -1,6 +1,7 @@
-// Self-scan (dogfooding): runs the course scanner (sast/backend/scanner.js) on Part C's own code,
-// the same scanner the worker runs on pull requests. Prints every finding; exit code 1 on any HIGH.
-//   From services/web:  npm run self-scan            or   node scripts/self-scan.js --out self-scan.json
+// self-scan: course scanner (sast/backend/scanner.js) on our own Part C code
+// same scanner the worker runs on PRs. prints every finding, exit 1 on any HIGH
+//   npm run self-scan   (in services/web)
+//   node scripts/self-scan.js --out self-scan.json
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';

@@ -1,4 +1,4 @@
-
+# Part C (Paste and Scan web): switch, ECR repo, roles, the web module, outputs
 variable "enable_web" {
   description = "Part C switch. true creates ECR gatekeeper/web; with web_image_digest also the two Lambdas and five routes."
   type        = bool
@@ -28,14 +28,17 @@ variable "web_demo_code_param" {
   default     = "/gatekeeper/demo-code"
 }
 
+# account ID comes from AWS at plan time, never typed in the code
 data "aws_caller_identity" "web" {}
 
+# web_on: switch is on AND an image digest exists
 locals {
   web_on         = var.enable_web && var.web_image_digest != null
   web_make_roles = local.web_on && !var.use_lab_role
   web_lab_role   = "arn:aws:iam::${data.aws_caller_identity.web.account_id}:role/LabRole"
 }
 
+# ECR repo for the web image. IMMUTABLE tags: one tag = one exact image
 resource "aws_ecr_repository" "web" {
   count = var.enable_web ? 1 : 0
 
@@ -44,6 +47,7 @@ resource "aws_ecr_repository" "web" {
   force_delete         = true
 }
 
+# trust policy: only the Lambda service can use these roles
 data "aws_iam_policy_document" "web_lambda_trust" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -55,6 +59,8 @@ data "aws_iam_policy_document" "web_lambda_trust" {
   }
 }
 
+# own roles only in a real account (use_lab_role = false)
+# Learner Lab blocks iam:CreateRole, so there both functions run as LabRole
 resource "aws_iam_role" "web" {
   for_each = local.web_make_roles ? toset(["gk-submit", "gk-results"]) : toset([])
 
@@ -62,6 +68,7 @@ resource "aws_iam_role" "web" {
   assume_role_policy = data.aws_iam_policy_document.web_lambda_trust.json
 }
 
+# least privilege, from docs/iam/*.json
 resource "aws_iam_role_policy" "web" {
   for_each = aws_iam_role.web
 
@@ -70,6 +77,7 @@ resource "aws_iam_role_policy" "web" {
   policy = templatefile("${path.module}/../docs/iam/${each.key}.json", { account_id = data.aws_caller_identity.web.account_id })
 }
 
+# the 2 Lambdas, 5 routes, logs, alarm and dashboard (infra/modules/web)
 module "web" {
   source = "./modules/web"
   count  = local.web_on ? 1 : 0
@@ -91,10 +99,12 @@ module "web" {
   depends_on = [aws_iam_role_policy.web]
 }
 
+# my per-route limits; core.tf adds them to the API stage
 locals {
   web_route_throttles = flatten([for m in module.web : m.route_throttles])
 }
 
+# outputs: deploy.mjs and smoke.mjs read these
 output "web_repository_url" {
   description = "ECR repository for the Part C image (null when enable_web is false). Contains the account ID, so it is hidden in logs."
   value       = one(aws_ecr_repository.web[*].repository_url)
