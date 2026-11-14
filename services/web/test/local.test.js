@@ -38,7 +38,9 @@ test('the local server plays the whole paste flow', async (t) => {
     const response = await fetch(`${local.base}/`);
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-security-policy'), /script-src 'sha256-/);
-    assert.match(await response.text(), /Inspection slip/);
+    const page = await response.text();
+    assert.match(page, /Your scan, through AWS/);
+    assert.match(page, /Security Report/);
   });
 
   await t.test('lists the 3 seeded pull request scans', async () => {

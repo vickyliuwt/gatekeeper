@@ -4,91 +4,386 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="Paste JavaScript and run the same security check that guards GateKeeper pull requests.">
-<title>Paste and Scan | GateKeeper</title>
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#FDF8F4">
+<meta name="description" content="GateKeeper: paste JavaScript and run the same cloud security check that guards our pull requests on AWS.">
+<title>GateKeeper · Cloud Security Platform</title>
 <link rel="icon" href="data:,">
 <!--STYLE-->
 </head>
 <body>
-<a class="skip" href="#code">Skip to the code box</a>
-<header class="masthead">
-  <div class="masthead-inner">
-    <p class="brand">
-      <svg class="brand-mark" viewBox="0 0 32 36" aria-hidden="true" focusable="false"><path d="M16 1 30 6v11c0 9-6 15-14 18C8 32 2 26 2 17V6z" fill="currentColor"/><path d="m9.5 18 4.5 4.5L23 13" fill="none" stroke="#14213d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span class="wordmark">GateKeeper</span>
-    </p>
-    <p class="tagline">Paste JavaScript and run the same security check that guards our pull requests.</p>
-  </div>
-</header>
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5.2c0 4.5-2.9 8-7 9.8-4.1-1.8-7-5.3-7-9.8V6l7-3z"/><path d="M8.9 12.1l2.2 2.2 4.1-4.4"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="M8.5 7.5L4 12l4.5 4.5M15.5 7.5L20 12l-4.5 4.5M13.4 5l-2.8 14"/></symbol>
+  <symbol id="i-gateway" viewBox="0 0 24 24"><path d="M4 20V9.2L12 4l8 5.2V20"/><path d="M9 20v-6h6v6M3 20h18"/></symbol>
+  <symbol id="i-lambda" viewBox="0 0 24 24"><path d="M6.5 4.5h3.2l7.8 15h2"/><path d="M12.2 10.6L7 19.5"/></symbol>
+  <symbol id="i-queue" viewBox="0 0 24 24"><rect x="4" y="4.5" width="16" height="4" rx="1.4"/><rect x="4" y="10" width="16" height="4" rx="1.4"/><rect x="4" y="15.5" width="10" height="4" rx="1.4"/></symbol>
+  <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7.5" ry="2.8"/><path d="M4.5 6v12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V6M4.5 12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8"/></symbol>
+  <symbol id="i-bucket" viewBox="0 0 24 24"><path d="M4.5 7.5h15l-1.5 11.2a2 2 0 0 1-2 1.8H8a2 2 0 0 1-2-1.8L4.5 7.5z"/><ellipse cx="12" cy="7.5" rx="7.5" ry="2.6"/></symbol>
+  <symbol id="i-report" viewBox="0 0 24 24"><path d="M14 3.5H7.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8z"/><path d="M14 3.5V8h4.5M9 13h6M9 16.5h4"/></symbol>
+  <symbol id="i-pr" viewBox="0 0 24 24"><circle cx="6.5" cy="6" r="2.3"/><circle cx="6.5" cy="18" r="2.3"/><circle cx="17.5" cy="18" r="2.3"/><path d="M6.5 8.3v7.4M17.5 15.7V9.5a3 3 0 0 0-3-3h-3.2M13 4.3L10.8 6.5 13 8.7"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.6l4.3 4.2L19 7.4"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4.2l8.6 15.3H3.4z"/><path d="M12 10v4.2M12 17.1v.2"/></symbol>
+  <symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M7 3.5h10M7 20.5h10M8 3.5v2.8L12 12l-4 5.7v2.8M16 3.5v2.8L12 12l4 5.7v2.8"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.2"/><path d="M5.5 15V5.8A1.3 1.3 0 0 1 6.8 4.5H15"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4.2h-4.2"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13.5 6.5L19 12l-5.5 5.5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6.5 13.5L12 19l5.5-5.5"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M7 9.5l5 5 5-5"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3.5 12h3.8l2.6-6.5 4.2 13 2.6-6.5h3.8"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7.2 18.5h9.6a4 4 0 0 0 .5-8 5.8 5.8 0 0 0-11.1 1.7 3.2 3.2 0 0 0 1 6.3z"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8.5" cy="15.5" r="3.8"/><path d="M11.3 12.7L19.5 4.5M16.5 7.5l2.5 2.5M14.5 9.5l1.8 1.8"/></symbol>
+  <symbol id="i-browser" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.2"/><path d="M3.5 9h17M6.8 6.8h.1M9.2 6.8h.1"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4.5 8.5V5.8a1.3 1.3 0 0 1 1.3-1.3h2.7M15.5 4.5h2.7a1.3 1.3 0 0 1 1.3 1.3v2.7M19.5 15.5v2.7a1.3 1.3 0 0 1-1.3 1.3h-2.7M8.5 19.5H5.8a1.3 1.3 0 0 1-1.3-1.3v-2.7M7.5 12h9"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 4l8.5 4.6L12 13.2 3.5 8.6z"/><path d="M3.5 12.6L12 17.2l8.5-4.6"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.3"/><circle cx="18" cy="6" r="2.3"/><path d="M8.3 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.7"/></symbol>
+  <symbol id="i-overview" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></symbol>
+  <symbol id="i-poll" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3M19.5 12a7.5 7.5 0 0 1-12.8 5.3"/><path d="M17.5 3.8v3.1h-3.1M6.5 20.2v-3.1h3.1"/></symbol>
+</svg>
 
-<main class="desk">
-  <section class="intake" aria-labelledby="intake-title">
-    <h1 id="intake-title">Paste and scan</h1>
-    <form id="scan-form" novalidate>
-      <div class="field">
-        <div class="label-row">
-          <label for="code">JavaScript to check</label>
-          <span class="samples">
-            <button type="button" class="text-button" id="load-risky">Load a risky example</button>
-            <button type="button" class="text-button" id="load-clean">Load a clean example</button>
-          </span>
+<a class="skip" href="#scan">Skip to the scanner</a>
+
+<div class="shell">
+  <aside class="side" aria-label="GateKeeper">
+    <a class="brand" href="#overview" aria-label="GateKeeper overview">
+      <span class="brand-mark" aria-hidden="true"><svg class="ico"><use href="#i-shield"/></svg></span>
+      <span class="brand-text"><span class="brand-name">GateKeeper</span><span class="brand-sub">Cloud Security Platform</span></span>
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#overview" data-nav="overview"><svg class="ico" aria-hidden="true"><use href="#i-overview"/></svg>Overview</a>
+      <a href="#scan" data-nav="scan"><svg class="ico" aria-hidden="true"><use href="#i-code"/></svg>Scan Code</a>
+      <a href="#pipeline" data-nav="pipeline"><svg class="ico" aria-hidden="true"><use href="#i-route"/></svg>AWS Path</a>
+      <a href="#report" data-nav="report"><svg class="ico" aria-hidden="true"><use href="#i-report"/></svg>Report</a>
+      <a href="#checks" data-nav="checks"><svg class="ico" aria-hidden="true"><use href="#i-pr"/></svg>PR Checks</a>
+      <a href="#architecture" data-nav="architecture"><svg class="ico" aria-hidden="true"><use href="#i-layers"/></svg>Architecture</a>
+    </nav>
+    <div class="side-stack">
+      <p class="side-label">Built with</p>
+      <ul>
+        <li><svg class="ico" aria-hidden="true"><use href="#i-gateway"/></svg>API Gateway</li>
+        <li><svg class="ico" aria-hidden="true"><use href="#i-lambda"/></svg>Lambda</li>
+        <li><svg class="ico" aria-hidden="true"><use href="#i-queue"/></svg>SQS + dead-letter queue</li>
+        <li><svg class="ico" aria-hidden="true"><use href="#i-db"/></svg>DynamoDB</li>
+        <li><svg class="ico" aria-hidden="true"><use href="#i-bucket"/></svg>S3</li>
+        <li><svg class="ico" aria-hidden="true"><use href="#i-key"/></svg>SSM Parameter Store</li>
+        <li><svg class="ico" aria-hidden="true"><use href="#i-activity"/></svg>CloudWatch</li>
+      </ul>
+    </div>
+    <div class="side-foot">
+      <p class="side-label">This page is served from</p>
+      <p class="env" id="env-pill" data-tone="other"><span class="env-dot" aria-hidden="true"></span><span id="env-text">AWS serverless</span></p>
+      <p class="side-note">Read from the page address, not a health check.</p>
+    </div>
+  </aside>
+
+  <main class="main" id="top">
+    <section class="hero reveal d1" id="overview" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><svg class="ico" aria-hidden="true"><use href="#i-cloud"/></svg>A cloud security gate for GitHub pull requests</p>
+        <h1 id="hero-title">Secure your code <span class="grad">in the cloud.</span></h1>
+        <p class="lede">Paste JavaScript and run the same SAST check that guards our pull requests. Each scan is a real AWS job: API Gateway, Lambda, SQS, a worker, then DynamoDB and S3.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="#scan" id="cta-scan"><svg class="ico" aria-hidden="true"><use href="#i-scan"/></svg>Scan JavaScript</a>
+          <a class="btn btn-quiet" href="#architecture">How it works</a>
+          <ul class="tags" aria-label="What it uses">
+            <li>JavaScript SAST</li><li>API Gateway + Lambda</li><li>Async jobs on SQS</li><li>Fails closed</li>
+          </ul>
         </div>
-        <textarea id="code" name="code" rows="16" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="size-hint"></textarea>
-        <p class="hint" id="size-hint">0.0 KB of 100 KB</p>
       </div>
-      <div class="field-row">
-        <div class="field">
-          <label for="filename">File name</label>
-          <input id="filename" name="filename" value="snippet.js" maxlength="100" autocomplete="off" spellcheck="false">
+      <div class="hero-art" aria-hidden="true">
+        <svg class="art" viewBox="0 0 260 210" focusable="false">
+          <defs>
+            <linearGradient id="art-cloud" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFDFB"/><stop offset="1" stop-color="#F8E6DD"/></linearGradient>
+            <linearGradient id="art-shield" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E8958A"/><stop offset="1" stop-color="#F0C38D"/></linearGradient>
+            <linearGradient id="art-orbit" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#E8958A" stop-opacity="0"/><stop offset=".5" stop-color="#E8958A" stop-opacity=".55"/><stop offset="1" stop-color="#C9B9E6" stop-opacity="0"/></linearGradient>
+          </defs>
+          <ellipse class="art-orbit" cx="130" cy="128" rx="118" ry="30" transform="rotate(-7 130 128)" stroke="url(#art-orbit)"/>
+          <g class="art-cloud" fill="url(#art-cloud)">
+            <circle cx="86" cy="132" r="30"/><circle cx="128" cy="104" r="44"/><circle cx="176" cy="124" r="34"/><rect x="56" y="122" width="152" height="44" rx="22"/>
+          </g>
+          <path class="art-cloud-line" d="M78 166h104a34 34 0 0 0 6.5-67.4A44 44 0 0 0 99.5 92 30 30 0 0 0 78 166z"/>
+          <path class="art-shield" fill="url(#art-shield)" d="M130 86l26 10v20c0 17.5-11 31-26 38.5-15-7.5-26-21-26-38.5V96z"/>
+          <path class="art-check" d="M118.5 120.5l8 8 15.5-16.5"/>
+          <path class="art-spark" d="M46 62l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/>
+          <path class="art-spark art-spark-2" d="M214 50l1.6 4.4 4.4 1.6-4.4 1.6-1.6 4.4-1.6-4.4-4.4-1.6 4.4-1.6z"/>
+          <circle class="art-dot" cx="226" cy="150" r="3"/>
+        </svg>
+      </div>
+    </section>
+
+    <section class="stats reveal d2" aria-label="Summary">
+      <article class="stat"><span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-activity"/></svg></span><div><p class="stat-label">Current scan</p><p class="stat-value" id="stat-scan">—</p><p class="stat-note" id="stat-scan-note">No scan yet</p></div></article>
+      <article class="stat"><span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-shield"/></svg></span><div><p class="stat-label">Findings</p><p class="stat-value" id="stat-findings">—</p><p class="stat-note" id="stat-findings-note">Shown when a scan ends</p></div></article>
+      <article class="stat"><span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-clock"/></svg></span><div><p class="stat-label">Time to result</p><p class="stat-value" id="stat-time">—</p><p class="stat-note" id="stat-time-note">From the job record</p></div></article>
+      <article class="stat"><span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-pr"/></svg></span><div><p class="stat-label">Latest PR check</p><p class="stat-value" id="stat-pr">—</p><p class="stat-note" id="stat-pr-note">From the demo repository</p></div></article>
+    </section>
+
+    <div class="work">
+      <section class="card scanner reveal d3" id="scan" aria-labelledby="scan-title">
+        <div class="card-head">
+          <div class="head-main">
+            <span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-code"/></svg></span>
+            <div><h2 id="scan-title">Code Scanner</h2><p class="sub">Paste JavaScript. It runs through the same rules as the PR gate.</p></div>
+          </div>
+          <div class="segmented" role="group" aria-label="Examples">
+            <button type="button" id="load-risky">Risky example</button>
+            <button type="button" id="load-clean">Clean example</button>
+          </div>
         </div>
-        <div class="field">
-          <label for="access">Access code</label>
-          <input id="access" name="access" type="password" autocomplete="off">
+        <form id="scan-form" novalidate>
+          <div class="editor">
+            <div class="editor-bar">
+              <span class="lang">JavaScript</span>
+              <label class="file-field"><span class="visually-hidden">File name</span><svg class="ico" aria-hidden="true"><use href="#i-report"/></svg><input id="filename" name="filename" value="snippet.js" maxlength="100" autocomplete="off" spellcheck="false"></label>
+              <span class="editor-meta" id="size-hint">0 lines · 0.0 KB of 100 KB</span>
+            </div>
+            <div class="editor-body">
+              <pre class="gutter" id="gutter" aria-hidden="true">1</pre>
+              <label class="visually-hidden" for="code">JavaScript to check</label>
+              <textarea id="code" name="code" rows="9" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="// paste JavaScript here, or load an example" aria-describedby="size-hint"></textarea>
+            </div>
+          </div>
+          <div class="submit-row">
+            <div class="field">
+              <label for="access">Access code</label>
+              <span class="input-icon"><svg class="ico" aria-hidden="true"><use href="#i-key"/></svg><input id="access" name="access" type="password" autocomplete="off" spellcheck="false" aria-describedby="access-hint"><button type="button" class="icon-btn eye-btn" id="toggle-access" aria-pressed="false" aria-label="Show access code"><svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg></button></span>
+              <p class="hint" id="access-hint">From the GateKeeper team. The server checks it against AWS SSM.</p>
+            </div>
+            <button type="submit" class="btn btn-primary btn-scan" id="scan-btn"><svg class="ico" aria-hidden="true"><use href="#i-scan"/></svg><span id="scan-label">Run security scan</span><kbd id="kbd-hint">Ctrl ↵</kbd></button>
+          </div>
+          <p class="form-error" id="form-error" role="alert" hidden></p>
+          <p class="fine"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg>Pasted code is deleted after 1 day. Anyone with a report link can open it. Secrets in it are masked.</p>
+        </form>
+      </section>
+
+      <section class="card activity reveal d4" id="activity" aria-labelledby="act-title" data-busy="false">
+        <div class="busy" aria-hidden="true"></div>
+        <div class="card-head">
+          <div class="head-main">
+            <span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-activity"/></svg></span>
+            <div><h2 id="act-title">Scan Activity</h2><p class="sub">The real job, step by step.</p></div>
+          </div>
+          <span class="chip" id="act-chip" data-tone="idle">Idle</span>
+        </div>
+        <div class="empty" id="act-empty">
+          <span class="tile tile-lg" aria-hidden="true"><svg class="ico"><use href="#i-hourglass"/></svg></span>
+          <p class="empty-title">Ready when you are</p>
+          <p class="empty-text">Start a scan to watch the job move through AWS. This page asks GET /scans/{jobId} every 2 s, then every 5 s, for up to 2 minutes.</p>
+          <button type="button" class="btn btn-quiet btn-sm" id="last-scan" hidden>Open my last scan</button>
+        </div>
+        <div class="live" id="act-live" hidden>
+          <ol class="steps">
+            <li class="step" data-step="received" data-state="todo"><span class="step-dot" aria-hidden="true"></span><div><p class="step-name">Received</p><p class="step-desc">gk-submit saved the code in S3 and the job in DynamoDB, then answered 202.</p></div><span class="step-time" data-step-time="received"></span></li>
+            <li class="step" data-step="queued" data-state="todo"><span class="step-dot" aria-hidden="true"></span><div><p class="step-name">Queued</p><p class="step-desc">The job waits in the SQS queue for a free worker.</p></div><span class="step-time" data-step-time="queued"></span></li>
+            <li class="step" data-step="scanning" data-state="todo"><span class="step-dot" aria-hidden="true"></span><div><p class="step-name">Scanning</p><p class="step-desc">The worker Lambda runs the course rules. A failed try comes back from SQS.</p></div><span class="step-time" data-step-time="scanning"></span></li>
+            <li class="step" data-step="report" data-state="todo"><span class="step-dot" aria-hidden="true"></span><div><p class="step-name">Report</p><p class="step-desc">Verdict in DynamoDB, masked report in S3, read by gk-results.</p></div><span class="step-time" data-step-time="report"></span></li>
+          </ol>
+          <dl class="meta">
+            <div><dt>Job ID</dt><dd><code id="job-id">—</code><button type="button" class="icon-btn" id="copy-job" aria-label="Copy job ID"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg></button></dd></div>
+            <div><dt>Trace ID</dt><dd><code id="trace-id">—</code></dd></div>
+            <div><dt>Try</dt><dd id="try-text">—</dd></div>
+            <div><dt>Elapsed here</dt><dd><span id="status-clock">0 s</span> · <span id="poll-count">0 polls</span></dd></div>
+          </dl>
+          <p class="status-line" id="status-text">Waiting for the first update.</p>
+          <div class="live-actions">
+            <button type="button" class="btn btn-quiet btn-sm" id="check-again" hidden><svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg>Check again</button>
+            <a class="btn btn-quiet btn-sm" href="#report" id="view-report" hidden>View report<svg class="ico" aria-hidden="true"><use href="#i-down"/></svg></a>
+          </div>
+          <div class="log">
+            <p class="log-title">What this page asked AWS</p>
+            <ol class="log-lines" id="log-lines"></ol>
+          </div>
+        </div>
+        <div class="problem" id="act-problem" hidden>
+          <span class="tile tile-lg tile-hold" aria-hidden="true"><svg class="ico"><use href="#i-alert"/></svg></span>
+          <p id="problem-text"></p>
+        </div>
+      </section>
+    </div>
+
+    <section class="card pipeline" id="pipeline" aria-labelledby="pipe-title" data-mode="idle">
+      <div class="card-head">
+        <div class="head-main">
+          <span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-route"/></svg></span>
+          <div><h2 id="pipe-title">Your scan, through AWS</h2><p class="sub" id="pipe-caption">Start a scan to light up both paths from the real job phase.</p></div>
+        </div>
+        <span class="chip" id="pipe-chip" data-tone="idle">Idle</span>
+      </div>
+      <div class="paths">
+        <div class="path" data-path="write">
+          <p class="path-label"><span class="path-name">Write path</span><span class="path-note">POST /scans, once per scan</span></p>
+          <ol class="rail rail-write">
+            <li class="node" data-node="api" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-gateway"/></svg></span><span class="node-name">API Gateway</span><span class="node-role">POST /scans, 1 per second</span><span class="node-state" data-node-state>Waiting</span></li>
+            <li class="node" data-node="submit" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-lambda"/></svg></span><span class="node-name">gk-submit</span><span class="node-role">code to S3, job to DynamoDB</span><span class="node-state" data-node-state>Waiting</span></li>
+            <li class="node" data-node="queue" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-queue"/></svg></span><span class="node-name">Amazon SQS</span><span class="node-role">job waits, up to 5 tries</span><span class="node-state" data-node-state>Waiting</span></li>
+            <li class="node" data-node="worker" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-lambda"/></svg></span><span class="node-name">gk-worker</span><span class="node-role">runs the course SAST rules</span><span class="node-state" data-node-state>Waiting</span></li>
+            <li class="node" data-node="store" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-db"/></svg></span><span class="node-name">DynamoDB + S3</span><span class="node-role">verdict, counts, masked report</span><span class="node-state" data-node-state>Waiting</span></li>
+          </ol>
+        </div>
+        <div class="path" data-path="read">
+          <p class="path-label"><span class="path-name">Read path</span><span class="path-note">GET /scans/{id}, <span id="read-polls">0 polls</span></span></p>
+          <ol class="rail rail-read">
+            <li class="node" data-node="poll" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-poll"/></svg></span><span class="node-name">API Gateway</span><span class="node-role">GET /scans/{id}, own limit</span><span class="node-state" data-node-state>Waiting</span></li>
+            <li class="node" data-node="results" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-lambda"/></svg></span><span class="node-name">gk-results</span><span class="node-role">read only, masks again</span><span class="node-state" data-node-state>Waiting</span></li>
+            <li class="bridge" aria-hidden="true"><span>same job item and report the worker wrote</span></li>
+            <li class="node" data-node="read" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-db"/></svg></span><span class="node-name">DynamoDB + S3</span><span class="node-role">GetItem by job ID, report once DONE</span><span class="node-state" data-node-state>Waiting</span></li>
+          </ol>
         </div>
       </div>
-      <p class="form-error" id="form-error" role="alert" hidden></p>
-      <button type="submit" class="primary" id="scan-btn">Scan code</button>
-      <p class="fine-print">Pasted code is deleted after one day. Only people with the link can open your report, and any hardcoded credential in it is masked.</p>
-    </form>
-  </section>
+      <p class="foot"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg>Lit from your job's real phase (GET /scans/{jobId}). It explains the design. It is not a health monitor.</p>
+    </section>
 
-  <section class="slip" aria-labelledby="slip-title">
-    <h2 id="slip-title">Inspection slip</h2>
-    <div id="slip-empty" class="slip-empty">
-      <p>Your report appears here after a scan.</p>
-      <button type="button" class="quiet-button" id="last-scan" hidden>Open my last scan</button>
-    </div>
-    <div id="slip-status" class="slip-status" hidden>
-      <p class="status-line"><span class="pulse" aria-hidden="true"></span><span id="status-text">Waiting for the first update.</span></p>
-      <p class="status-clock" id="status-clock">0 s</p>
-      <button type="button" class="quiet-button" id="check-again" hidden>Check again</button>
-    </div>
-    <div id="slip-result" class="slip-result" hidden></div>
-    <div id="slip-problem" class="slip-problem" hidden>
-      <p id="problem-text"></p>
-    </div>
-    <p class="visually-hidden" id="live" aria-live="polite"></p>
-  </section>
-</main>
+    <section class="card report" id="report" aria-labelledby="report-title">
+      <div class="card-head">
+        <div class="head-main">
+          <span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-report"/></svg></span>
+          <div><h2 id="report-title">Security Report</h2><p class="sub" id="report-sub">Verdict, counts and masked findings for one scan.</p></div>
+        </div>
+      </div>
+      <div class="empty" id="report-empty">
+        <span class="tile tile-lg" aria-hidden="true"><svg class="ico"><use href="#i-shield"/></svg></span>
+        <p class="empty-title">No report yet</p>
+        <p class="empty-text">When a scan ends, the verdict, the HIGH, MEDIUM and LOW counts and every finding show here. Any HIGH blocks a pull request.</p>
+      </div>
+      <div class="report-body" id="report-body" hidden>
+        <div class="verdict" id="verdict" data-tone="hold">
+          <span class="verdict-mark" id="verdict-mark">—</span>
+          <div class="verdict-copy">
+            <p class="verdict-title" id="verdict-title"></p>
+            <p class="verdict-text" id="verdict-text"></p>
+            <p class="verdict-gate" id="verdict-gate"></p>
+          </div>
+        </div>
+        <div class="summary">
+          <figure class="donut-wrap">
+            <svg class="donut" id="donut" viewBox="0 0 120 120" aria-hidden="true"><circle class="donut-track" cx="60" cy="60" r="48"/></svg>
+            <figcaption><span class="donut-total" id="donut-total">0</span><span class="donut-label" id="donut-label">findings</span></figcaption>
+          </figure>
+          <dl class="sev-list">
+            <div class="sev-row" data-sev="high"><dt><span class="sev-dot" aria-hidden="true"></span>High</dt><dd id="count-high">0</dd><p class="sev-note">blocks the merge</p></div>
+            <div class="sev-row" data-sev="medium"><dt><span class="sev-dot" aria-hidden="true"></span>Medium</dt><dd id="count-medium">0</dd><p class="sev-note">warning only</p></div>
+            <div class="sev-row" data-sev="low"><dt><span class="sev-dot" aria-hidden="true"></span>Low</dt><dd id="count-low">0</dd><p class="sev-note">warning only</p></div>
+          </dl>
+          <div class="subject" id="subject"></div>
+        </div>
+        <div class="findings-head">
+          <h3 id="findings-title">Findings</h3>
+          <div class="filters" id="filters" role="group" aria-label="Show findings by severity">
+            <button type="button" data-filter="all" aria-pressed="true">All</button>
+            <button type="button" data-filter="HIGH" aria-pressed="false">High</button>
+            <button type="button" data-filter="MEDIUM" aria-pressed="false">Medium</button>
+            <button type="button" data-filter="LOW" aria-pressed="false">Low</button>
+          </div>
+        </div>
+        <ol class="findings" id="findings"></ol>
+        <p class="quiet" id="findings-empty" hidden></p>
+        <div class="skipped" id="skipped" hidden>
+          <p class="skipped-title"><svg class="ico" aria-hidden="true"><use href="#i-alert"/></svg>Not scanned</p>
+          <ul id="skipped-list"></ul>
+        </div>
+        <div class="share">
+          <label for="share-link">Link to this report</label>
+          <div class="share-row"><input id="share-link" readonly><button type="button" class="btn btn-quiet btn-sm" id="copy-link"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Copy link</button></div>
+          <p class="hint">Anyone with this link can read the masked report. Pasted code is gone after 1 day.</p>
+        </div>
+      </div>
+    </section>
 
-<section class="recent" aria-labelledby="recent-title">
-  <div class="recent-head">
-    <h2 id="recent-title">Recent pull request checks</h2>
-    <button type="button" class="quiet-button" id="refresh-recent">Refresh</button>
-  </div>
-  <p class="recent-sub">From the demo repository. Pasted code never shows up here.</p>
-  <table class="recent-table" id="recent-table" hidden>
-    <thead>
-      <tr><th scope="col">Pull request</th><th scope="col">Commit</th><th scope="col">Result</th><th scope="col">Findings</th><th scope="col">When</th><th scope="col"><span class="visually-hidden">Report</span></th></tr>
-    </thead>
-    <tbody id="recent-body"></tbody>
-  </table>
-  <p class="recent-note" id="recent-note">Loading recent checks.</p>
-</section>
+    <section class="card checks" id="checks" aria-labelledby="checks-title">
+      <div class="card-head">
+        <div class="head-main">
+          <span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-pr"/></svg></span>
+          <div><h2 id="checks-title">Recent PR Checks</h2><p class="sub">Newest pull request scans from the demo repository. Pasted code never shows here.</p></div>
+        </div>
+        <button type="button" class="btn btn-quiet btn-sm" id="refresh-recent"><svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg>Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table class="table" id="recent-table" hidden>
+          <thead><tr><th scope="col">Pull request</th><th scope="col">Commit</th><th scope="col">Result</th><th scope="col">Findings</th><th scope="col">When</th><th scope="col"><span class="visually-hidden">Report</span></th></tr></thead>
+          <tbody id="recent-body"></tbody>
+        </table>
+      </div>
+      <p class="note" id="recent-note">Loading recent checks…</p>
+    </section>
 
-<footer class="footer">
-  <p>GateKeeper is a CS6620 Fall 2026 project by Weiting Liu, Yuyao Xu and Lingsong Qin. Scans run on AWS Lambda with the course SAST scanner.</p>
-</footer>
+    <section class="arch" id="architecture" aria-labelledby="arch-title">
+      <div class="section-head">
+        <p class="eyebrow"><svg class="ico" aria-hidden="true"><use href="#i-layers"/></svg>Architecture</p>
+        <h2 id="arch-title">How a scan moves through AWS</h2>
+        <p class="lede">Two doors in, one queue, one worker, one job record. Writes and reads take different Lambdas, so a busy page never slows the PR gate.</p>
+      </div>
+      <div class="card lanes">
+        <div class="lane">
+          <p class="lane-title"><svg class="ico" aria-hidden="true"><use href="#i-pr"/></svg>Pull request path <span class="owner">Part A + Part B</span></p>
+          <ol class="flow flow-7">
+            <li>GitHub<span>signed webhook</span></li><li>API Gateway<span>POST /webhooks/github</span></li><li>gk-webhook<span>HMAC check, job</span></li><li>SQS<span>at least once</span></li><li>gk-worker<span>course scanner</span></li><li>DynamoDB + S3<span>verdict, report</span></li><li>Commit status<span>success / failure / error</span></li>
+          </ol>
+        </div>
+        <div class="lane lane-mine">
+          <p class="lane-title"><svg class="ico" aria-hidden="true"><use href="#i-browser"/></svg>Paste path: write <span class="owner owner-mine">Part C · this page</span></p>
+          <ol class="flow flow-6">
+            <li class="mine">This page<span>served by gk-results</span></li><li>API Gateway<span>POST /scans, 1 per s</span></li><li class="mine">gk-submit<span>access code from SSM</span></li><li>S3 + DynamoDB<span>pasted/ · job QUEUED</span></li><li>SQS<span>5 tries, then DLQ</span></li><li>gk-worker<span>course scanner</span></li>
+          </ol>
+        </div>
+        <div class="lane lane-mine lane-read">
+          <p class="lane-title"><svg class="ico" aria-hidden="true"><use href="#i-poll"/></svg>Paste path: read <span class="owner owner-mine">Part C · this page</span></p>
+          <ol class="flow flow-4">
+            <li class="mine">This page<span>polls 2 s, then 5 s</span></li><li>API Gateway<span>GET /scans/{id}</span></li><li class="mine">gk-results<span>read only, masks again</span></li><li>DynamoDB + S3<span>job item, report</span></li>
+          </ol>
+        </div>
+      </div>
+      <div class="why-grid">
+        <article class="card why">
+          <span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-queue"/></svg></span>
+          <h3>Why SQS in the middle</h3>
+          <p>gk-submit answers 202 in about a second. The slow scan runs in the background.</p>
+          <ul><li>a failed try comes back after 360 s</li><li>5 tries, then the dead-letter queue + an alarm</li><li>a burst waits in line, not at the door</li></ul>
+        </article>
+        <article class="card why">
+          <span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-db"/></svg></span>
+          <h3>Why DynamoDB for status</h3>
+          <p>Every poll is one GetItem by job ID: small, fast, paid per request.</p>
+          <ul><li>conditional writes: a retry never makes a 2nd job</li><li>TTL deletes old jobs (1 day pastes, 30 days PRs)</li><li>no joins needed, so no RDS bill all day</li></ul>
+        </article>
+        <article class="card why">
+          <span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-poll"/></svg></span>
+          <h3>Why polling, not WebSockets</h3>
+          <p>A scan takes seconds. Polling one small route is simpler and costs almost nothing.</p>
+          <ul><li>every 2 s for 20 s, then every 5 s</li><li>stops at 2 minutes, then Check again</li><li>the job lives on the server, so a closed tab loses nothing</li></ul>
+        </article>
+        <article class="card why">
+          <span class="tile tile-hold" aria-hidden="true"><svg class="ico"><use href="#i-hourglass"/></svg></span>
+          <h3>Why INCOMPLETE is blocked</h3>
+          <p>Too big, a timeout, or nothing to scan means we never checked it. Not scanned is not safe.</p>
+          <ul><li>PASS → success, merge allowed</li><li>FAIL → failure, merge blocked</li><li>INCOMPLETE → error, merge blocked</li></ul>
+        </article>
+      </div>
+      <div class="card guard">
+        <h3><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg>Security built in</h3>
+        <ul class="guard-grid">
+          <li><strong>Only our routes</strong><span>5 for this page, 1 for GitHub. Any other path gets 404.</span></li>
+          <li><strong>Rate limits</strong><span>POST /scans: 1 per second, burst 5. Polls have their own higher limit.</span></li>
+          <li><strong>Access code in SSM</strong><span>SecureString. Never in git, the image or Terraform state.</span></li>
+          <li><strong>Secrets masked</strong><span>Each quoted secret keeps its first 4 characters. Same rule in worker and page.</span></li>
+          <li><strong>Strict CSP</strong><span>Only this page's own style and script run, checked by hash.</span></li>
+          <li><strong>Private data</strong><span>S3 blocks public access. gk-results holds no secret and its code never writes.</span></li>
+        </ul>
+        <p class="lab-note"><svg class="ico" aria-hidden="true"><use href="#i-cloud"/></svg>Learner Lab: CloudFront is blocked, so gk-results serves this page over HTTPS. Roles cannot be made, so all 4 Lambdas run as LabRole. No VPC, so no NAT bill.</p>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p class="footer-brand"><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg>GateKeeper</p>
+      <p>CS6620 Cloud Computing · AWS Serverless Security Project</p>
+      <p class="footer-team">Weiting Liu, Yuyao Xu and Lingsong Qin · Fall 2026</p>
+    </footer>
+  </main>
+</div>
+
+<p class="visually-hidden" id="live" aria-live="polite"></p>
 
 <template id="sample-risky">// demo.js: three common mistakes
 const pwd = "admin123";

@@ -1,4 +1,4 @@
-// Shared helpers for the tests. node --test also runs this file, and it simply has no tests.
+// shared test helpers (this file has no tests)
 export function idSequence() {
   let n = 0;
   return () => {
