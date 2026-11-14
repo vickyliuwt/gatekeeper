@@ -195,6 +195,25 @@
     return Number.isFinite(start) && Number.isFinite(end) && end >= start ? end - start : null;
   }
 
+  // facts for the Scan log, all from the job record
+  function scanFacts(status) {
+    const s = status || {};
+    const attempt = Number(s.attempt) || 0;
+    const ms = jobDurationMs(s);
+    const result = s.phase ? (s.verdict ? `${s.phase} · ${s.verdict}` : String(s.phase)) : '—';
+    return [
+      ['Tries', attempt > 0 ? `${attempt} of ${Number(s.maxAttempts) || MAX_ATTEMPTS}` : 'not started'],
+      ['Time to result', ms === null ? '—' : formatDuration(ms)],
+      ['Result', result],
+    ];
+  }
+
+  // open by itself after a retry or INCOMPLETE
+  function scanLogOpen(status) {
+    const s = status || {};
+    return Number(s.attempt) > 1 || s.verdict === 'INCOMPLETE';
+  }
+
   function clockTime(ms) {
     const d = new Date(ms);
     return [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
@@ -207,6 +226,11 @@
     if (aws) return { tone: 'aws', text: `AWS · API Gateway · ${aws[1]}` };
     if (['127.0.0.1', 'localhost', '::1', '[::1]'].includes(host)) return { tone: 'local', text: 'Local dev · memory stand-ins' };
     return { tone: 'other', text: host || 'unknown host' };
+  }
+
+  // local test buttons only on my laptop. same host list as envLabel
+  function isLocalHost(hostname) {
+    return envLabel(hostname).tone === 'local';
   }
 
   // one short log text for a status answer
@@ -223,9 +247,12 @@
   const WRITE_PATH = Object.freeze(['api', 'submit', 'queue', 'worker', 'store']);
   const READ_PATH = Object.freeze(['poll', 'results', 'read']);
   const PIPELINE = Object.freeze([...WRITE_PATH, ...READ_PATH]);
-  const NODE_LABELS = Object.freeze({ idle: 'Waiting', active: 'Working', done: 'Done', retry: 'Retrying', hold: 'Incomplete', error: 'Stopped', live: 'Polling' });
+  const NODE_LABELS = Object.freeze({ idle: 'Waiting', active: 'Working', done: 'Done', retry: 'Retrying', hold: 'Incomplete', error: 'Stopped', live: 'Polling', paused: 'Paused' });
+  // busy looks; when the page stops asking they turn into paused
+  const BUSY = new Set(['active', 'live', 'retry']);
 
-  // view: { mode, phase, attempt, verdict, reportReady }
+  // view: { mode, phase, attempt, verdict, reportReady, paused }
+  // paused: the page stopped asking, the job may still run
   // mode: idle | sending | rejected | limited | tracking | lost
   function pipelineStates(view) {
     const v = view || {};
@@ -260,6 +287,9 @@
       s.queue = attempt > 0 ? 'retry' : 'active';
       if (attempt > 0) s.worker = 'retry';
     }
+    if (v.paused && v.phase !== 'DONE') {
+      for (const name of PIPELINE) if (BUSY.has(s[name])) s[name] = 'paused';
+    }
     return s;
   }
 
@@ -276,6 +306,7 @@
     if (v.mode === 'rejected') return 'gk-submit said no, so nothing was queued.';
     if (v.mode === 'lost') return 'Read path: no job has this ID. Pasted code is kept for 1 day.';
     if (v.mode !== 'tracking') return 'Start a scan to light up both paths from the real job phase.';
+    if (v.paused && v.phase !== 'DONE') return 'This page stopped asking. The job may still run on AWS. Check again to look.';
     if (v.phase === 'RUNNING') return `gk-worker is scanning your code (try ${Math.max(attempt, 1)} of ${MAX_ATTEMPTS}). The page keeps polling.`;
     if (v.phase === 'FAILED') return `Try ${attempt} of ${MAX_ATTEMPTS} failed. SQS gives the job out again later.`;
     if (v.phase === 'DONE') {
@@ -293,6 +324,7 @@
     if (v.mode === 'rejected') return { label: 'Not sent', tone: 'stop' };
     if (v.mode === 'lost') return { label: 'Not found', tone: 'hold' };
     if (v.mode !== 'tracking') return { label: 'Idle', tone: 'idle' };
+    if (v.paused && v.phase !== 'DONE') return { label: 'Paused', tone: 'idle' };
     if (v.phase === 'RUNNING') return { label: 'Scanning', tone: 'run' };
     if (v.phase === 'FAILED') return { label: 'Retrying', tone: 'hold' };
     if (v.phase === 'DONE') {
@@ -325,6 +357,9 @@
     } else {
       s.queued = 'active';
       if (attempt > 0) s.scanning = 'retry';
+    }
+    if (v.paused && v.phase !== 'DONE') {
+      for (const name of STEPS) if (BUSY.has(s[name])) s[name] = 'paused';
     }
     return s;
   }
@@ -362,8 +397,11 @@
     donutParts,
     formatDuration,
     jobDurationMs,
+    scanFacts,
+    scanLogOpen,
     clockTime,
     envLabel,
+    isLocalHost,
     statusSummary,
     pipelineStates,
     nodeLabel,

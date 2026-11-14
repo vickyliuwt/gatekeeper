@@ -128,9 +128,17 @@
             <span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-code"/></svg></span>
             <div><h2 id="scan-title">Code Scanner</h2><p class="sub">Paste JavaScript. It runs through the same rules as the PR gate.</p></div>
           </div>
-          <div class="segmented" role="group" aria-label="Examples">
-            <button type="button" id="load-risky">Risky example</button>
-            <button type="button" id="load-clean">Clean example</button>
+          <div class="head-tools">
+            <div class="segmented" role="group" aria-label="Examples">
+              <button type="button" id="load-risky">Risky example</button>
+              <button type="button" id="load-clean">Clean example</button>
+            </div>
+            <div class="segmented local-tests" id="local-tests" role="group" aria-label="Local tests" hidden>
+              <span class="local-label" aria-hidden="true">Local tests</span>
+              <button type="button" id="load-retry">Retry</button>
+              <button type="button" id="load-incomplete">Incomplete</button>
+              <button type="button" id="load-slow">Slow 2 min</button>
+            </div>
           </div>
         </div>
         <form id="scan-form" novalidate>
@@ -152,7 +160,7 @@
               <span class="input-icon"><svg class="ico" aria-hidden="true"><use href="#i-key"/></svg><input id="access" name="access" type="password" autocomplete="off" spellcheck="false" aria-describedby="access-hint"><button type="button" class="icon-btn eye-btn" id="toggle-access" aria-pressed="false" aria-label="Show access code"><svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg></button></span>
               <p class="hint" id="access-hint">From the GateKeeper team. The server checks it against AWS SSM.</p>
             </div>
-            <button type="submit" class="btn btn-primary btn-scan" id="scan-btn"><svg class="ico" aria-hidden="true"><use href="#i-scan"/></svg><span id="scan-label">Run security scan</span><kbd id="kbd-hint">Ctrl ↵</kbd></button>
+            <button type="submit" class="btn btn-primary btn-scan" id="scan-btn"><svg class="ico" aria-hidden="true"><use href="#i-scan"/></svg><span id="scan-label">Run security scan</span><kbd id="kbd-hint" aria-hidden="true">Ctrl ↵</kbd></button>
           </div>
           <p class="form-error" id="form-error" role="alert" hidden></p>
           <p class="fine"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg>Pasted code is deleted after 1 day. Anyone with a report link can open it. Secrets in it are masked.</p>
@@ -189,6 +197,7 @@
           </dl>
           <p class="status-line" id="status-text">Waiting for the first update.</p>
           <div class="live-actions">
+            <button type="button" class="btn btn-quiet btn-sm" id="stop-watch" hidden><svg class="ico" aria-hidden="true"><use href="#i-hourglass"/></svg>Stop watching</button>
             <button type="button" class="btn btn-quiet btn-sm" id="check-again" hidden><svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg>Check again</button>
             <a class="btn btn-quiet btn-sm" href="#report" id="view-report" hidden>View report<svg class="ico" aria-hidden="true"><use href="#i-down"/></svg></a>
           </div>
@@ -216,20 +225,20 @@
         <div class="path" data-path="write">
           <p class="path-label"><span class="path-name">Write path</span><span class="path-note">POST /scans, once per scan</span></p>
           <ol class="rail rail-write">
-            <li class="node" data-node="api" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-gateway"/></svg></span><span class="node-name">API Gateway</span><span class="node-role">POST /scans, 1 per second</span><span class="node-state" data-node-state>Waiting</span></li>
-            <li class="node" data-node="submit" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-lambda"/></svg></span><span class="node-name">gk-submit</span><span class="node-role">code to S3, job to DynamoDB</span><span class="node-state" data-node-state>Waiting</span></li>
-            <li class="node" data-node="queue" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-queue"/></svg></span><span class="node-name">Amazon SQS</span><span class="node-role">job waits, up to 5 tries</span><span class="node-state" data-node-state>Waiting</span></li>
-            <li class="node" data-node="worker" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-lambda"/></svg></span><span class="node-name">gk-worker</span><span class="node-role">runs the course SAST rules</span><span class="node-state" data-node-state>Waiting</span></li>
-            <li class="node" data-node="store" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-db"/></svg></span><span class="node-name">DynamoDB + S3</span><span class="node-role">verdict, counts, masked report</span><span class="node-state" data-node-state>Waiting</span></li>
+            <li class="node" data-node="api" data-state="idle"><span class="node-tile" aria-hidden="true"><svg class="ico"><use href="#i-gateway"/></svg></span><span class="node-name">API Gateway</span><span class="node-role">POST /scans, 1 per second</span><span class="node-state" data-node-state>Waiting</span></li>
+            <li class="node" data-node="submit" data-state="idle"><span class="node-tile" aria-hidden="true"><svg class="ico"><use href="#i-lambda"/></svg></span><span class="node-name">gk-submit</span><span class="node-role">code to S3, job to DynamoDB</span><span class="node-state" data-node-state>Waiting</span></li>
+            <li class="node" data-node="queue" data-state="idle"><span class="node-tile" aria-hidden="true"><svg class="ico"><use href="#i-queue"/></svg></span><span class="node-name">Amazon SQS</span><span class="node-role">job waits, up to 5 tries</span><span class="node-state" data-node-state>Waiting</span></li>
+            <li class="node" data-node="worker" data-state="idle"><span class="node-tile" aria-hidden="true"><svg class="ico"><use href="#i-lambda"/></svg></span><span class="node-name">gk-worker</span><span class="node-role">runs the course SAST rules</span><span class="node-state" data-node-state>Waiting</span></li>
+            <li class="node" data-node="store" data-state="idle"><span class="node-tile" aria-hidden="true"><svg class="ico"><use href="#i-db"/></svg></span><span class="node-name">DynamoDB + S3</span><span class="node-role">verdict, counts, masked report</span><span class="node-state" data-node-state>Waiting</span></li>
           </ol>
         </div>
         <div class="path" data-path="read">
           <p class="path-label"><span class="path-name">Read path</span><span class="path-note">GET /scans/{id}, <span id="read-polls">0 polls</span></span></p>
           <ol class="rail rail-read">
-            <li class="node" data-node="poll" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-poll"/></svg></span><span class="node-name">API Gateway</span><span class="node-role">GET /scans/{id}, own limit</span><span class="node-state" data-node-state>Waiting</span></li>
-            <li class="node" data-node="results" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-lambda"/></svg></span><span class="node-name">gk-results</span><span class="node-role">read only, masks again</span><span class="node-state" data-node-state>Waiting</span></li>
+            <li class="node" data-node="poll" data-state="idle"><span class="node-tile" aria-hidden="true"><svg class="ico"><use href="#i-poll"/></svg></span><span class="node-name">API Gateway</span><span class="node-role">GET /scans/{id}, own limit</span><span class="node-state" data-node-state>Waiting</span></li>
+            <li class="node" data-node="results" data-state="idle"><span class="node-tile" aria-hidden="true"><svg class="ico"><use href="#i-lambda"/></svg></span><span class="node-name">gk-results</span><span class="node-role">read only, masks again</span><span class="node-state" data-node-state>Waiting</span></li>
             <li class="bridge" aria-hidden="true"><span>same job item and report the worker wrote</span></li>
-            <li class="node" data-node="read" data-state="idle"><span class="node-tile"><svg class="ico"><use href="#i-db"/></svg></span><span class="node-name">DynamoDB + S3</span><span class="node-role">GetItem by job ID, report once DONE</span><span class="node-state" data-node-state>Waiting</span></li>
+            <li class="node" data-node="read" data-state="idle"><span class="node-tile" aria-hidden="true"><svg class="ico"><use href="#i-db"/></svg></span><span class="node-name">DynamoDB + S3</span><span class="node-role">GetItem by job ID, report once DONE</span><span class="node-state" data-node-state>Waiting</span></li>
           </ol>
         </div>
       </div>
@@ -263,9 +272,9 @@
             <figcaption><span class="donut-total" id="donut-total">0</span><span class="donut-label" id="donut-label">findings</span></figcaption>
           </figure>
           <dl class="sev-list">
-            <div class="sev-row" data-sev="high"><dt><span class="sev-dot" aria-hidden="true"></span>High</dt><dd id="count-high">0</dd><p class="sev-note">blocks the merge</p></div>
-            <div class="sev-row" data-sev="medium"><dt><span class="sev-dot" aria-hidden="true"></span>Medium</dt><dd id="count-medium">0</dd><p class="sev-note">warning only</p></div>
-            <div class="sev-row" data-sev="low"><dt><span class="sev-dot" aria-hidden="true"></span>Low</dt><dd id="count-low">0</dd><p class="sev-note">warning only</p></div>
+            <div class="sev-row" data-sev="high"><dt><span class="sev-dot" aria-hidden="true"></span>High</dt><dd id="count-high">0</dd><dd class="sev-note">blocks the merge</dd></div>
+            <div class="sev-row" data-sev="medium"><dt><span class="sev-dot" aria-hidden="true"></span>Medium</dt><dd id="count-medium">0</dd><dd class="sev-note">warning only</dd></div>
+            <div class="sev-row" data-sev="low"><dt><span class="sev-dot" aria-hidden="true"></span>Low</dt><dd id="count-low">0</dd><dd class="sev-note">warning only</dd></div>
           </dl>
           <div class="subject" id="subject"></div>
         </div>
@@ -284,6 +293,12 @@
           <p class="skipped-title"><svg class="ico" aria-hidden="true"><use href="#i-alert"/></svg>Not scanned</p>
           <ul id="skipped-list"></ul>
         </div>
+        <details class="scan-log" id="scan-log">
+          <summary class="scan-log-head"><span class="scan-log-title">Scan log</span> <span class="scan-log-note">Seen by this browser</span><svg class="ico chev" aria-hidden="true"><use href="#i-chevron"/></svg></summary>
+          <dl class="scan-facts" id="scan-facts"></dl>
+          <p class="hint">Facts come from the job record.</p>
+          <ol class="log-lines" id="report-log"></ol>
+        </details>
         <div class="share">
           <label for="share-link">Link to this report</label>
           <div class="share-row"><input id="share-link" readonly><button type="button" class="btn btn-quiet btn-sm" id="copy-link"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Copy link</button></div>
@@ -317,19 +332,19 @@
       </div>
       <div class="card lanes">
         <div class="lane">
-          <p class="lane-title"><svg class="ico" aria-hidden="true"><use href="#i-pr"/></svg>Pull request path <span class="owner">Part A + Part B</span></p>
+          <p class="lane-title"><svg class="ico" aria-hidden="true"><use href="#i-pr"/></svg>Pull request path <span class="owner">Webhook intake + Scan worker</span></p>
           <ol class="flow flow-7">
             <li>GitHub<span>signed webhook</span></li><li>API Gateway<span>POST /webhooks/github</span></li><li>gk-webhook<span>HMAC check, job</span></li><li>SQS<span>at least once</span></li><li>gk-worker<span>course scanner</span></li><li>DynamoDB + S3<span>verdict, report</span></li><li>Commit status<span>success / failure / error</span></li>
           </ol>
         </div>
         <div class="lane lane-mine">
-          <p class="lane-title"><svg class="ico" aria-hidden="true"><use href="#i-browser"/></svg>Paste path: write <span class="owner owner-mine">Part C · this page</span></p>
+          <p class="lane-title"><svg class="ico" aria-hidden="true"><use href="#i-browser"/></svg>Paste path: write <span class="owner owner-mine">Paste and Scan · this page</span></p>
           <ol class="flow flow-6">
             <li class="mine">This page<span>served by gk-results</span></li><li>API Gateway<span>POST /scans, 1 per s</span></li><li class="mine">gk-submit<span>access code from SSM</span></li><li>S3 + DynamoDB<span>pasted/ · job QUEUED</span></li><li>SQS<span>5 tries, then DLQ</span></li><li>gk-worker<span>course scanner</span></li>
           </ol>
         </div>
         <div class="lane lane-mine lane-read">
-          <p class="lane-title"><svg class="ico" aria-hidden="true"><use href="#i-poll"/></svg>Paste path: read <span class="owner owner-mine">Part C · this page</span></p>
+          <p class="lane-title"><svg class="ico" aria-hidden="true"><use href="#i-poll"/></svg>Paste path: read <span class="owner owner-mine">Paste and Scan · this page</span></p>
           <ol class="flow flow-4">
             <li class="mine">This page<span>polls 2 s, then 5 s</span></li><li>API Gateway<span>GET /scans/{id}</span></li><li class="mine">gk-results<span>read only, masks again</span></li><li>DynamoDB + S3<span>job item, report</span></li>
           </ol>
@@ -385,15 +400,27 @@
 
 <p class="visually-hidden" id="live" aria-live="polite"></p>
 
-<template id="sample-risky">// demo.js: three common mistakes
+<template id="sample-risky">// demo-risk.js: three common mistakes
 const pwd = "admin123";
 const dbHost = "192.168.1.10";
 const sessionId = Math.random().toString(36);
 </template>
-<template id="sample-clean">// cart.js: adds up a shopping cart
+<template id="sample-clean">// demo-clean.js: adds up a shopping cart
 export function cartTotal(items) {
   return items.reduce((sum, item) => sum + item.price * item.qty, 0);
 }
+</template>
+<template id="sample-retry">// demo-retry.js: local test, try 1 fails, try 2 passes
+// SIMULATE_RETRY
+const total = 1 + 2;
+</template>
+<template id="sample-incomplete">// demo-incomplete.js: local test, the scan ends INCOMPLETE
+// SIMULATE_INCOMPLETE
+const total = 1 + 2;
+</template>
+<template id="sample-slow">// demo-slow.js: local test, runs 3 min, the page stops at 2
+// SIMULATE_SLOW
+const total = 1 + 2;
 </template>
 <!--SCRIPT-->
 </body>

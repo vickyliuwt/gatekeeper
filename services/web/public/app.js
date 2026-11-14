@@ -40,6 +40,10 @@
     formError: byId('form-error'),
     loadRisky: byId('load-risky'),
     loadClean: byId('load-clean'),
+    localTests: byId('local-tests'),
+    loadRetry: byId('load-retry'),
+    loadIncomplete: byId('load-incomplete'),
+    loadSlow: byId('load-slow'),
     actChip: byId('act-chip'),
     empty: byId('act-empty'),
     lastScan: byId('last-scan'),
@@ -54,8 +58,12 @@
     pollCount: byId('poll-count'),
     statusText: byId('status-text'),
     checkAgain: byId('check-again'),
+    stopWatch: byId('stop-watch'),
     viewReport: byId('view-report'),
     logLines: byId('log-lines'),
+    reportLog: byId('report-log'),
+    scanLog: byId('scan-log'),
+    scanFacts: byId('scan-facts'),
     reportSub: byId('report-sub'),
     reportEmpty: byId('report-empty'),
     reportBody: byId('report-body'),
@@ -155,15 +163,24 @@
   // ---------- client log: what this page asked AWS ----------
   function resetLog() {
     ui.logLines.replaceChildren();
+    ui.reportLog.replaceChildren();
   }
 
   function addLog(text, tone) {
     const line = el('li');
     if (tone) line.dataset.tone = tone;
     line.append(el('time', null, GK.clockTime(Date.now())), el('span', null, text));
-    ui.logLines.append(line);
-    while (ui.logLines.children.length > LOG_MAX) ui.logLines.firstElementChild.remove();
-    ui.logLines.scrollTop = ui.logLines.scrollHeight;
+    // same line also goes to the report Scan log (a copy)
+    for (const [list, node] of [[ui.logLines, line], [ui.reportLog, line.cloneNode(true)]]) {
+      list.append(node);
+      while (list.children.length > LOG_MAX) list.firstElementChild.remove();
+      list.scrollTop = list.scrollHeight;
+    }
+  }
+
+  // open log: jump to the newest line
+  function scrollReportLog() {
+    ui.reportLog.scrollTop = ui.reportLog.scrollHeight;
   }
 
   function toneOf(status) {
@@ -183,7 +200,10 @@
     }
     ui.pipeline.dataset.mode = view.mode;
     // thin moving line while a job is not done yet (no fake percent)
-    ui.activity.dataset.busy = String(view.mode === 'sending' || (view.mode === 'tracking' && view.phase !== 'DONE'));
+    const watching = view.mode === 'tracking' && view.phase !== 'DONE' && !view.paused;
+    ui.activity.dataset.busy = String(view.mode === 'sending' || watching);
+    // button only while this page is really asking
+    ui.stopWatch.hidden = !(watching && tracking);
     ui.pipeCaption.textContent = GK.pipelineCaption(view);
     const chip = GK.phaseChip(view);
     setChip(ui.pipeChip, chip);
@@ -194,12 +214,13 @@
   }
 
   // first time each step shows up, as +time since the scan started
+  // reopened scan (link or Check again): start time unknown, so no +time
   function stampSteps() {
     if (!tracking) return;
     const steps = GK.lifecycle(view);
     const elapsed = Date.now() - tracking.startedAt;
     for (const name of GK.STEPS) {
-      if (steps[name] !== 'todo' && tracking.seen[name] === undefined) tracking.seen[name] = tracking.openedDone ? null : elapsed;
+      if (steps[name] !== 'todo' && tracking.seen[name] === undefined) tracking.seen[name] = tracking.openedDone || tracking.fromLink ? null : elapsed;
       const slot = doc.querySelector(`[data-step-time="${name}"]`);
       const at = tracking.seen[name];
       if (slot) slot.textContent = at === undefined || at === null ? '' : `+${GK.formatDuration(at)}`;
@@ -267,7 +288,6 @@
     if (code === 401) return 'That access code is not right. Check it with the GateKeeper team.';
     if (code === 413) return 'This paste is over 100 KB. Paste a smaller part.';
     if (code === 429) return 'Too many scans at once. Wait a few seconds, then scan again.';
-    if (code === 503) return 'The scan queue is busy. Scan again in a moment.';
     if (body && typeof body.message === 'string') return body.message;
     return `GateKeeper answered with status ${code}. Scan again in a moment.`;
   }
@@ -282,6 +302,7 @@
 
   async function onSubmit(event) {
     event.preventDefault();
+    if (ui.scan.disabled) return undefined;
     clearFormError();
     const code = ui.code.value;
     const filename = ui.filename.value.trim() || 'snippet.js';
@@ -393,15 +414,32 @@
     for (const slot of doc.querySelectorAll('[data-step-time]')) slot.textContent = '';
   }
 
-  function startTracking(jobId, { sentAt = null, traceId = null, fromLink = false } = {}) {
+  // page stops asking; the job keeps running on AWS
+  function pauseWatching(byUser) {
+    // Stop watching goes away in render(), so check first if it had focus
+    const hadFocus = doc.activeElement === ui.stopWatch;
+    stopTracking();
+    view = { ...view, paused: true };
+    render();
+    ui.statusText.textContent = 'This page stopped asking. The job may still run on AWS.';
+    ui.checkAgain.hidden = false;
+    // Stop watching is gone now, so keep focus on Check again
+    if (byUser || hadFocus) ui.checkAgain.focus();
+    if (byUser) {
+      addLog('Stopped watching · the job keeps running on AWS', 'hold');
+      announce('Stopped watching. The job may still run on AWS.');
+    }
+  }
+
+  function startTracking(jobId, { sentAt = null, traceId = null, fromLink = false, keepLog = false } = {}) {
     stopTracking();
     lastJobId = jobId;
     if (fromLink) {
-      resetLog();
+      if (!keepLog) resetLog();
       hideReport();
     }
     resetLiveMeta();
-    tracking = { jobId, startedAt: sentAt || Date.now(), timer: 0, polls: 0, seen: {}, fromLink, openedDone: false, lastKey: '' };
+    tracking = { jobId, startedAt: sentAt || Date.now(), timer: 0, polls: 0, seen: {}, fromLink, openedDone: fromLink, lastKey: '' };
     ui.jobId.textContent = jobId;
     ui.jobId.title = jobId;
     ui.traceId.textContent = typeof traceId === 'string' && traceId ? traceId : '—';
@@ -430,8 +468,10 @@
       }
       if (code === 200 && body) status = body;
       else if (code === 429) addLog('GET /scans/{id} → 429 · slow down', 'hold');
+      else addLog(`GET /scans/{id} → ${code}`, 'hold');
     } catch (ignored) {
-      // a short network drop: keep the plan, try again next tick
+      // short network drop: log it, try again next tick
+      if (tracking === current) addLog('GET /scans/{id} → no answer (network)', 'hold');
     }
     if (tracking !== current) return;
 
@@ -460,10 +500,14 @@
       }
     }
     if (!GK.shouldKeepPolling(elapsed, status ? status.phase : 'QUEUED')) {
-      stopTracking();
-      ui.statusText.textContent = 'Still scanning after 2 minutes. Check again to keep waiting.';
-      ui.checkAgain.hidden = false;
-      announce('Still scanning after 2 minutes.');
+      pauseWatching(false);
+      if (current.lastKey) {
+        ui.statusText.textContent = 'Still scanning after 2 minutes. Check again to keep waiting.';
+        announce('Still scanning after 2 minutes. This page stopped asking.');
+      } else {
+        ui.statusText.textContent = 'No answer from GateKeeper for 2 minutes. Check again to try once more.';
+        announce('No answer from GateKeeper for 2 minutes. This page stopped asking.');
+      }
       return;
     }
     current.timer = win.setTimeout(() => poll(current), GK.pollDelayMs(elapsed));
@@ -547,6 +591,10 @@
     ui.skippedList.replaceChildren(...skipped.map((file) => el('li', null, `${file.path}: ${String(file.reason || '').replace(/_/g, ' ')}`)));
     ui.skipped.hidden = skipped.length === 0;
 
+    ui.scanFacts.replaceChildren(...GK.scanFacts(status).flatMap(([label, value]) => [el('dt', null, label), el('dd', null, value)]));
+    ui.scanLog.open = GK.scanLogOpen(status);
+    scrollReportLog();
+
     ui.shareLink.value = `${win.location.origin}${win.location.pathname}?job=${status.jobId}`;
     setButtonText(ui.copyLink, 'Copy link');
 
@@ -560,7 +608,7 @@
       ui.statFindings.dataset.tone = 'hold';
       ui.statFindingsNote.textContent = 'Not scanned, so no counts';
     }
-    announce(`Scan finished: ${info.label}, ${GK.countsLine(counts)}.`);
+    announce(scanned ? `Scan finished: ${info.label}, ${GK.countsLine(counts)}.` : `Scan finished: ${info.label}, not scanned.`);
   }
 
   function renderCounts(counts, scanned) {
@@ -774,6 +822,8 @@
     const env = GK.envLabel(win.location.hostname);
     ui.envText.textContent = env.text;
     ui.envPill.dataset.tone = env.tone;
+    // test markers only work in the local stand-in worker, never on AWS
+    ui.localTests.hidden = !GK.isLocalHost(win.location.hostname);
   }
 
   function watchSections() {
@@ -830,10 +880,24 @@
     }
   });
   ui.toggleAccess.addEventListener('click', toggleAccess);
-  ui.loadRisky.addEventListener('click', () => loadSample('sample-risky', 'demo.js'));
-  ui.loadClean.addEventListener('click', () => loadSample('sample-clean', 'cart.js'));
+  ui.loadRisky.addEventListener('click', () => loadSample('sample-risky', 'demo-risk.js'));
+  ui.loadClean.addEventListener('click', () => loadSample('sample-clean', 'demo-clean.js'));
+  ui.loadRetry.addEventListener('click', () => loadSample('sample-retry', 'demo-retry.js'));
+  ui.loadIncomplete.addEventListener('click', () => loadSample('sample-incomplete', 'demo-incomplete.js'));
+  ui.loadSlow.addEventListener('click', () => loadSample('sample-slow', 'demo-slow.js'));
   ui.checkAgain.addEventListener('click', () => {
-    if (lastJobId) startTracking(lastJobId, { fromLink: true });
+    if (!lastJobId) return;
+    // GET /scans/{id} has no trace id, so keep the one shown
+    const shown = ui.traceId.textContent;
+    const traceId = shown && shown !== '—' ? shown : null;
+    startTracking(lastJobId, { fromLink: true, keepLog: true, traceId });
+    announce('Watching this scan again.');
+    // pressed button is gone now, so move focus to Stop watching
+    if (!ui.stopWatch.hidden) ui.stopWatch.focus();
+  });
+  ui.stopWatch.addEventListener('click', () => pauseWatching(true));
+  ui.scanLog.addEventListener('toggle', () => {
+    if (ui.scanLog.open) scrollReportLog();
   });
   ui.copyJob.addEventListener('click', () => {
     if (!lastJobId) return;

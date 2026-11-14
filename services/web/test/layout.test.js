@@ -11,6 +11,7 @@ const read = (name) => readFileSync(join(PUBLIC_DIR, name), 'utf8');
 const html = read('index.html');
 const app = read('app.js');
 const css = read('style.css');
+const logic = read('logic.js');
 
 test('AWS path boxes and activity steps match logic.js, in order', () => {
   assert.deepEqual([...html.matchAll(/data-node="([a-z]+)"/g)].map((m) => m[1]), [...GK.PIPELINE]);
@@ -96,4 +97,116 @@ test('the access code box is a password field with a show button, and it is neve
 test('hero tags sit in the button row, so the first screen stays short', () => {
   const cta = html.slice(html.indexOf('class="hero-cta"'), html.indexOf('class="hero-art"'));
   assert.match(cta, /class="tags"/);
+});
+
+test('the page uses product names, not team part letters', () => {
+  assert.doesNotMatch(html, /Part [ABC]\b/);
+  assert.match(html, /Webhook intake \+ Scan worker/);
+  assert.equal((html.match(/Paste and Scan · this page/g) || []).length, 2);
+});
+
+test('examples use demo-risk.js and demo-clean.js', () => {
+  assert.match(app, /loadSample\('sample-risky', 'demo-risk\.js'\)/);
+  assert.match(app, /loadSample\('sample-clean', 'demo-clean\.js'\)/);
+  assert.match(html, /\/\/ demo-risk\.js: /);
+  assert.match(html, /\/\/ demo-clean\.js: /);
+  assert.doesNotMatch(html + app, /cart\.js|'demo\.js'/);
+});
+
+test('stop watching is honest and check again keeps the log', () => {
+  assert.match(html, /<button type="button" class="btn btn-quiet btn-sm" id="stop-watch" hidden>[\s\S]*?Stop watching<\/button>/);
+  assert.match(app, /stopWatch: byId\('stop-watch'\)/);
+  assert.match(app, /Stopped watching · the job keeps running on AWS/);
+  assert.match(app, /startTracking\(lastJobId, \{ fromLink: true, keepLog: true, traceId \}\)/);
+  assert.doesNotMatch(html + app, /Cancel|Stop scan/);
+  assert.match(css, /\[data-state="paused"\]/);
+});
+
+test('the report has a scan log seen by this browser', () => {
+  assert.match(html, /<details class="scan-log" id="scan-log">/);
+  assert.match(html, /Seen by this browser/);
+  assert.match(html, /id="scan-facts"/);
+  assert.match(html, /<ol class="log-lines" id="report-log">/);
+  const at = html.indexOf('id="scan-log"');
+  assert.ok(html.indexOf('id="report-body"') < at);
+  assert.ok(at < html.indexOf('class="share"'));
+});
+
+test('review fixes: honest, accessible, no double scan', () => {
+  assert.match(app, /event\.preventDefault\(\);\s*if \(ui\.scan\.disabled\) return undefined;/);
+  assert.match(app, /Scan finished: \$\{info\.label\}, not scanned\./);
+  assert.match(app, /openedDone: fromLink/);
+  assert.equal((html.match(/<span class="node-tile" aria-hidden="true"/g) || []).length, 8);
+  assert.equal((html.match(/<span class="node-tile"/g) || []).length, 8);
+  assert.match(html, /<kbd[^>]*aria-hidden="true"/);
+  assert.match(app, /GET \/scans\/\{id\} → no answer/);
+  assert.match(app, /No answer from GateKeeper for 2 minutes/);
+  assert.doesNotMatch(app, /The scan queue is busy/);
+  assert.doesNotMatch(css + html + app + logic, /\bv8\d\b/);
+  assert.doesNotMatch(html, /<p class="sev-note">/);
+  assert.match(html, /<dd class="sev-note">blocks the merge<\/dd>/);
+  assert.doesNotMatch(css, /#A09290|#B2A4A0/i);
+  assert.match(app, /ui\.scanLog\.addEventListener\('toggle'/);
+  assert.match(css, /\.sev-row\[data-sev="high"\]\.has dd\[id\]/);
+  assert.doesNotMatch(css, /\.has dd \{/);
+});
+
+test('the folded scan log has an arrow like the finding cards', () => {
+  const start = html.indexOf('<summary class="scan-log-head">');
+  const head = html.slice(start, html.indexOf('</summary>', start));
+  assert.match(head, /<svg class="ico chev" aria-hidden="true"><use href="#i-chevron"\/><\/svg>/);
+  // text reads "Scan log Seen by this browser", not glued together
+  assert.match(head, /Scan log<\/span> <span class="scan-log-note">/);
+  assert.match(css, /\.scan-log\[open\][^{]*\.chev[^{]*\{[^}]*rotate\(180deg\)/);
+});
+
+test('stop watching and check again keep focus and say what happened', () => {
+  const pause = app.slice(app.indexOf('function pauseWatching('), app.indexOf('function startTracking('));
+  // Stop watching goes away in render(), so check focus before it runs
+  assert.match(pause, /const hadFocus = doc\.activeElement === ui\.stopWatch;[\s\S]*render\(\);/);
+  assert.match(pause, /ui\.checkAgain\.hidden = false;[\s\S]*if \(byUser \|\| hadFocus\) ui\.checkAgain\.focus\(\);/);
+  // log line and the spoken line only when the user pressed the button
+  assert.match(pause, /if \(byUser\) \{[^}]*addLog\('Stopped watching[^}]*announce\('Stopped watching\. The job may still run on AWS\.'\);[^}]*\}/);
+  const again = app.slice(app.indexOf("ui.checkAgain.addEventListener('click'"), app.indexOf("ui.stopWatch.addEventListener('click'"));
+  assert.match(again, /startTracking\([^;]*\);\s*[\s\S]*if \(!ui\.stopWatch\.hidden\) ui\.stopWatch\.focus\(\);/);
+  assert.match(again, /startTracking\([^;]*\);[\s\S]*announce\('Watching this scan again\.'\);/);
+  // GET /scans/{id} has no trace id, so check again keeps the one shown
+  assert.match(again, /ui\.traceId\.textContent/);
+});
+
+test('step times only for a scan this page sent, never after a reopen', () => {
+  // after Check again or a link, the start time is unknown: show no +time
+  assert.match(app, /tracking\.seen\[name\] = tracking\.openedDone \|\| tracking\.fromLink \? null : elapsed;/);
+});
+
+test('one busy list for the paused look, used by the path and the steps', () => {
+  assert.match(logic, /const BUSY = new Set\(\['active', 'live', 'retry'\]\);/);
+  assert.equal((logic.match(/BUSY\.has\(s\[name\]\)/g) || []).length, 2);
+  assert.doesNotMatch(logic, /\['active', 'live', 'retry'\]\.includes/);
+});
+
+test('check again keeps the log, and the 2 minute stop is not a user stop', () => {
+  assert.match(app, /if \(!keepLog\) resetLog\(\);/);
+  const twoMin = app.slice(app.indexOf('if (!GK.shouldKeepPolling('), app.indexOf('current.timer = win.setTimeout'));
+  assert.match(twoMin, /pauseWatching\(false\);/);
+  assert.doesNotMatch(twoMin, /pauseWatching\(true\)/);
+});
+
+test('local test buttons are hidden and load the marker code', () => {
+  assert.match(html, /<div class="segmented local-tests" id="local-tests" role="group" aria-label="Local tests" hidden>/);
+  assert.match(html, /<span class="local-label" aria-hidden="true">Local tests<\/span>/);
+  assert.match(html, /<button type="button" id="load-retry">Retry<\/button>/);
+  assert.match(html, /<button type="button" id="load-incomplete">Incomplete<\/button>/);
+  assert.match(html, /<button type="button" id="load-slow">Slow 2 min<\/button>/);
+  assert.match(html, /<template id="sample-retry">\/\/ demo-retry\.js: [^\n]*\n\/\/ SIMULATE_RETRY\n/);
+  assert.match(html, /<template id="sample-incomplete">\/\/ demo-incomplete\.js: [^\n]*\n\/\/ SIMULATE_INCOMPLETE\n/);
+  assert.match(html, /<template id="sample-slow">\/\/ demo-slow\.js: [^\n]*\n\/\/ SIMULATE_SLOW\n/);
+  // .segmented sets display: inline-flex, so hidden needs this rule to win
+  assert.match(css, /\[hidden\] \{ display: none !important; \}/);
+  assert.match(app, /localTests\.hidden = !GK\.isLocalHost\(win\.location\.hostname\)/);
+  // only one line may show or hide the row, so it can never show on AWS
+  assert.equal((app.match(/localTests\.hidden/g) || []).length, 1);
+  assert.match(app, /loadSample\('sample-retry', 'demo-retry\.js'\)/);
+  assert.match(app, /loadSample\('sample-incomplete', 'demo-incomplete\.js'\)/);
+  assert.match(app, /loadSample\('sample-slow', 'demo-slow\.js'\)/);
 });

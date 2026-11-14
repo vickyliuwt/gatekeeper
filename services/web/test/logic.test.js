@@ -84,7 +84,7 @@ test('the read path polls while the job runs and reads the report once at DONE',
 });
 
 test('every node state has a plain label, and captions never invent numbers', () => {
-  for (const state of ['idle', 'active', 'done', 'retry', 'hold', 'error', 'live']) assert.ok(GK.nodeLabel(state).length > 0);
+  for (const state of ['idle', 'active', 'done', 'retry', 'hold', 'error', 'live', 'paused']) assert.ok(GK.nodeLabel(state).length > 0);
   assert.match(GK.pipelineCaption({ mode: 'tracking', phase: 'RUNNING', attempt: 2 }), /try 2 of 5/);
   assert.match(GK.pipelineCaption({ mode: 'tracking', phase: 'FAILED', attempt: 1 }), /Try 1 of 5 failed/);
   assert.match(GK.pipelineCaption({ mode: 'tracking', phase: 'DONE', verdict: 'INCOMPLETE' }), /not safe/);
@@ -132,4 +132,48 @@ test('times, the env pill and the log text stay honest', () => {
   assert.equal(GK.lineCount('a\nb'), 2);
   assert.match(GK.verdictInfo('INCOMPLETE').gate, /blocked/);
   assert.equal(GK.shortJobId('paste-3f2a9c4e-8b1d-4e6f-9a7b-2c5d8e1f0a3b'), 'paste-3f2a9c4e…');
+});
+
+test('a paused job stops looking busy but keeps what is done', () => {
+  const p = { mode: 'tracking', phase: 'RUNNING', attempt: 1, paused: true };
+  const s = GK.pipelineStates(p);
+  assert.deepEqual([s.api, s.submit, s.queue], ['done', 'done', 'done']);
+  assert.deepEqual([s.worker, s.poll, s.results, s.read], ['paused', 'paused', 'paused', 'paused']);
+  assert.equal(GK.nodeLabel('paused'), 'Paused');
+  assert.deepEqual(GK.phaseChip(p), { label: 'Paused', tone: 'idle' });
+  assert.match(GK.pipelineCaption(p), /stopped asking/);
+  assert.match(GK.pipelineCaption(p), /may still run on AWS/);
+  assert.equal(GK.lifecycle(p).scanning, 'paused');
+  assert.equal(GK.pipelineStates({ mode: 'tracking', phase: 'QUEUED', attempt: 1, paused: true }).queue, 'paused');
+});
+
+test('paused is ignored once the job is DONE', () => {
+  const d = { mode: 'tracking', phase: 'DONE', verdict: 'PASS', reportReady: true, paused: true };
+  assert.equal(GK.phaseChip(d).label, 'PASS');
+  assert.doesNotMatch(GK.pipelineCaption(d), /stopped asking/);
+  assert.deepEqual(GK.pipelineStates(d), GK.pipelineStates({ ...d, paused: false }));
+  assert.deepEqual(GK.lifecycle(d), GK.lifecycle({ ...d, paused: false }));
+});
+
+test('scan facts come from the job record and never print undefined', () => {
+  const done = { phase: 'DONE', verdict: 'PASS', attempt: 2, maxAttempts: 5,
+    createdAt: '2026-11-11T22:34:10.000Z', updatedAt: '2026-11-11T22:34:23.000Z' };
+  assert.deepEqual(GK.scanFacts(done), [['Tries', '2 of 5'], ['Time to result', '13 s'], ['Result', 'DONE · PASS']]);
+  const bare = GK.scanFacts({ phase: 'DONE', verdict: 'INCOMPLETE' });
+  assert.deepEqual(bare.map(([k]) => k), ['Tries', 'Time to result', 'Result']);
+  assert.equal(bare[0][1], 'not started');
+  assert.equal(bare[1][1], '—');
+  assert.doesNotMatch(JSON.stringify(bare), /undefined|NaN|null/);
+});
+
+test('the scan log opens by itself only after a retry or INCOMPLETE', () => {
+  assert.equal(GK.scanLogOpen({ verdict: 'PASS', attempt: 1 }), false);
+  assert.equal(GK.scanLogOpen({ verdict: 'FAIL', attempt: 1 }), false);
+  assert.equal(GK.scanLogOpen({ verdict: 'PASS', attempt: 2 }), true);
+  assert.equal(GK.scanLogOpen({ verdict: 'INCOMPLETE', attempt: 1 }), true);
+});
+
+test('local tests show only on my own machine', () => {
+  for (const h of ['127.0.0.1', 'localhost', '::1', '[::1]', 'LOCALHOST']) assert.equal(GK.isLocalHost(h), true);
+  for (const h of ['abc123.execute-api.us-east-1.amazonaws.com', 'example.com', '', undefined]) assert.equal(GK.isLocalHost(h), false);
 });
