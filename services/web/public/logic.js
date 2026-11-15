@@ -1,5 +1,7 @@
-// page helpers, no DOM here. node tests load this file too
-// gk-results puts this file before app.js. in the browser both run as one script
+// page helpers with no DOM here
+// node tests load this file too
+// the results lambda puts this file before the app file
+// in the browser both run as one script
 (function attachGateKeeperHelpers(root) {
   'use strict';
 
@@ -15,7 +17,7 @@
   const REPO_NAME = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
   const SEVERITY_ORDER = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 
-  // poll: every 2 s for the first 20 s, then every 5 s
+  // poll every 2 s for the first 20 s then every 5 s
   function pollDelayMs(elapsedMs) {
     return elapsedMs < FAST_PHASE_MS ? FAST_POLL_MS : SLOW_POLL_MS;
   }
@@ -24,7 +26,8 @@
     return phase !== 'DONE' && elapsedMs < POLL_LIMIT_MS;
   }
 
-  // all poll times in one 2 min window. tests: 30 or less
+  // all poll times in one 2 min window
+  // tests want 30 or less
   function pollTimes() {
     const times = [];
     for (let at = 0; at < POLL_LIMIT_MS; at += pollDelayMs(at)) times.push(at);
@@ -66,7 +69,8 @@
       case 'RUNNING':
         return attempt > 1 ? `Scanning, try ${attempt} of ${max}.` : 'Scanning your code.';
       case 'FAILED':
-        return `Try ${attempt} of ${max} failed. GateKeeper tries again in a few minutes.`;
+        // SQS sends the job again after its visibility timeout which is 360 s on AWS
+        return `Try ${attempt} of ${max} failed. SQS gives the job back after the visibility timeout.`;
       case 'DONE':
         return 'Scan finished.';
       default:
@@ -74,21 +78,21 @@
     }
   }
 
-  // one verdict = one tone, one title, one gate rule
+  // one verdict has one tone and one title and one gate rule
   const VERDICTS = {
     PASS: {
       tone: 'pass', label: 'PASS', title: 'No high-risk problems',
-      summary: 'No high-risk problems. A pull request with this code could merge.',
+      summary: 'A pull request with this code could merge. Medium and low findings are warnings only.',
       gate: 'Commit status: success. Merge allowed.',
     },
     FAIL: {
       tone: 'stop', label: 'FAIL', title: 'High-risk problems found',
-      summary: 'High-risk problems found. A pull request with this code would be blocked.',
+      summary: 'A pull request with this code would be blocked until every high finding is fixed.',
       gate: 'Commit status: failure. Merge blocked until it is fixed.',
     },
     INCOMPLETE: {
       tone: 'hold', label: 'INCOMPLETE', title: 'Scan could not finish',
-      summary: 'The scan could not check everything. GateKeeper blocks unchecked code instead of trusting it.',
+      summary: 'GateKeeper could not check everything, so it blocks the code instead of trusting it.',
       gate: 'Commit status: error. Merge blocked: not scanned is not safe.',
     },
   };
@@ -139,7 +143,7 @@
     return String(severity || 'Unknown');
   }
 
-  // HIGH first, then file, then line
+  // HIGH first then file then line
   function sortFindings(list) {
     return (Array.isArray(list) ? list : [])
       .filter((f) => f && typeof f === 'object')
@@ -161,7 +165,8 @@
 
   const round2 = (n) => Math.round(n * 100) / 100;
 
-  // donut parts from real counts only. c = circle length
+  // donut parts from real counts only
+  // c is the circle length
   function donutParts(counts, c) {
     const items = [['high', Number(counts && counts.high) || 0], ['medium', Number(counts && counts.medium) || 0], ['low', Number(counts && counts.low) || 0]];
     const total = items.reduce((sum, [, n]) => sum + n, 0);
@@ -178,7 +183,7 @@
     return { total, parts };
   }
 
-  // 5.9 s / 42 s / 1 min 12 s
+  // short time text like 42 s or 1 min 12 s
   function formatDuration(ms) {
     if (!Number.isFinite(ms) || ms < 0) return '';
     if (ms < 10000) return `${(ms / 1000).toFixed(1)} s`;
@@ -187,7 +192,8 @@
     return `${Math.floor(s / 60)} min ${s % 60} s`;
   }
 
-  // server time: createdAt -> updatedAt, both from the job item
+  // server time from createdAt to updatedAt
+  // both come from the job item
   function jobDurationMs(status) {
     if (!status || status.phase !== 'DONE') return null;
     const start = Date.parse(status.createdAt);
@@ -195,7 +201,8 @@
     return Number.isFinite(start) && Number.isFinite(end) && end >= start ? end - start : null;
   }
 
-  // facts for the Scan log, all from the job record
+  // facts for the Scan log
+  // all from the job record
   function scanFacts(status) {
     const s = status || {};
     const attempt = Number(s.attempt) || 0;
@@ -219,16 +226,23 @@
     return [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
   }
 
-  // where the page runs: API Gateway region, or my laptop
+  // my laptop names
+  // any 127 address is my laptop too
+  const LOCAL_HOSTS = new Set(['localhost', '::1', '[::1]']);
+  const LOOPBACK = /^127(?:\.\d{1,3}){3}$/;
+
+  // where the page runs
+  // API Gateway region or my laptop
   function envLabel(hostname) {
     const host = String(hostname || '').toLowerCase();
     const aws = host.match(/^[a-z0-9]+\.execute-api\.([a-z0-9-]+)\.amazonaws\.com$/);
     if (aws) return { tone: 'aws', text: `AWS · API Gateway · ${aws[1]}` };
-    if (['127.0.0.1', 'localhost', '::1', '[::1]'].includes(host)) return { tone: 'local', text: 'Local dev · memory stand-ins' };
+    if (LOCAL_HOSTS.has(host) || LOOPBACK.test(host)) return { tone: 'local', text: 'Local dev · memory stand-ins' };
     return { tone: 'other', text: host || 'unknown host' };
   }
 
-  // local test buttons only on my laptop. same host list as envLabel
+  // local test buttons only on my laptop
+  // same host list as envLabel
   function isLocalHost(hostname) {
     return envLabel(hostname).tone === 'local';
   }
@@ -241,28 +255,91 @@
     return attempt > 0 ? `${status.phase} · try ${attempt} of ${Number(status.maxAttempts) || MAX_ATTEMPTS}` : status.phase;
   }
 
-  // ---- AWS path card: a write path and a read path, lit from the real phase ----
-  // write: POST /scans -> gk-submit -> SQS -> gk-worker -> DynamoDB + S3
-  // read: page polls GET /scans/{id} -> gk-results -> same job item + S3 report
+  // split log text into verb and rest
+  // so GET and POST get their own look
+  function splitLogText(text) {
+    const value = String(text || '');
+    const m = value.match(/^(GET|POST) (.*)$/);
+    return m ? { verb: m[1], rest: m[2] } : { verb: null, rest: value };
+  }
+
+  // turn a local file name into a name the API takes
+  // or null
+  // spaces and odd signs become a dash
+  function safeFilename(name) {
+    const cleaned = String(name || '').replace(/[^A-Za-z0-9._-]/g, '-').replace(/^[^A-Za-z0-9]+/, '');
+    return isFilename(cleaned) ? cleaned : null;
+  }
+
+  // why a picked file can not go in the box
+  // null means ok
+  function fileProblem(name, bytes) {
+    if (!safeFilename(name)) return 'Pick a .js, .mjs or .cjs file.';
+    if (!Number.isFinite(bytes) || bytes <= 0) return 'This file is empty.';
+    if (bytes > MAX_CODE_BYTES) return `This file is ${formatKB(bytes)}. The limit is 100 KB.`;
+    return null;
+  }
+
+  // one round trip seen by this browser
+  // like 84 ms or 2 s
+  // a lambda cold start shows up here as a slow line
+  function latencyText(ms) {
+    if (!Number.isFinite(ms) || ms < 0) return '';
+    return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
+  }
+
+  // a bad poll answer as short words for the log
+  function pollProblem(code, hasBody) {
+    if (code === 200 && !hasBody) return '200 · empty answer';
+    if (code === 429) return '429 · slow down';
+    return String(code);
+  }
+
+  // what the page says when it stops at 2 minutes
+  // hadStatus means a poll gave a status
+  // lastCode is the last bad http code and 0 means no answer
+  function stopNote(hadStatus, lastCode) {
+    if (hadStatus) {
+      return { text: 'Still scanning after 2 minutes. Check again to keep waiting.', say: 'Still scanning after 2 minutes. This page stopped asking.' };
+    }
+    if (Number.isFinite(lastCode) && lastCode > 0) {
+      const what = lastCode === 200 ? 'an empty 200' : String(lastCode);
+      return { text: `GateKeeper answered ${what} for 2 minutes, never a job status. Check again to try once more.`, say: `GateKeeper answered ${what} for 2 minutes. This page stopped asking.` };
+    }
+    return { text: 'No answer from GateKeeper for 2 minutes. Check again to try once more.', say: 'No answer from GateKeeper for 2 minutes. This page stopped asking.' };
+  }
+
+  // AWS path card
+  // a write path and a read path lit from the real phase
+  // write path is POST scans then submit then SQS
+  // then the worker then DynamoDB and S3
+  // read path is the page asking for the status
+  // then results reads the same job item and S3 report
   const WRITE_PATH = Object.freeze(['api', 'submit', 'queue', 'worker', 'store']);
   const READ_PATH = Object.freeze(['poll', 'results', 'read']);
   const PIPELINE = Object.freeze([...WRITE_PATH, ...READ_PATH]);
   const NODE_LABELS = Object.freeze({ idle: 'Waiting', active: 'Working', done: 'Done', retry: 'Retrying', hold: 'Incomplete', error: 'Stopped', live: 'Polling', paused: 'Paused' });
-  // busy looks; when the page stops asking they turn into paused
+  // busy looks
+  // when the page stops asking they turn into paused
   const BUSY = new Set(['active', 'live', 'retry']);
 
-  // view: { mode, phase, attempt, verdict, reportReady, paused }
-  // paused: the page stopped asking, the job may still run
-  // mode: idle | sending | rejected | limited | tracking | lost
+  // view has mode phase attempt verdict reportReady and paused
+  // paused means the page stopped asking but the job may still run
+  // mode is idle or sending or rejected or limited or tracking or lost
   function pipelineStates(view) {
     const v = view || {};
     const s = Object.fromEntries(PIPELINE.map((name) => [name, 'idle']));
     if (v.mode === 'sending') return { ...s, api: 'active', submit: 'active' };
     if (v.mode === 'limited') return { ...s, api: 'error' };
     if (v.mode === 'rejected') return { ...s, api: 'done', submit: 'error' };
-    // lost: gk-results answered, but DynamoDB has no item for this ID
+    // lost means results answered but DynamoDB has no item for this ID
     if (v.mode === 'lost') return { ...s, poll: 'done', results: 'done', read: 'error' };
     if (v.mode !== 'tracking') return s;
+    // reopened link with no answer yet so only the read path is known
+    if (!v.phase) {
+      for (const name of READ_PATH) s[name] = v.paused ? 'paused' : 'live';
+      return s;
+    }
     s.api = 'done';
     s.submit = 'done';
     s.poll = 'live';
@@ -280,7 +357,7 @@
       s.worker = v.verdict === 'INCOMPLETE' ? 'hold' : 'done';
       s.store = 'done';
       s.poll = 'done';
-      // report read happens once, after DONE
+      // report read happens once after DONE
       s.results = v.reportReady ? 'done' : 'active';
       s.read = v.reportReady ? 'done' : 'active';
     } else {
@@ -307,8 +384,9 @@
     if (v.mode === 'lost') return 'Read path: no job has this ID. Pasted code is kept for 1 day.';
     if (v.mode !== 'tracking') return 'Start a scan to light up both paths from the real job phase.';
     if (v.paused && v.phase !== 'DONE') return 'This page stopped asking. The job may still run on AWS. Check again to look.';
+    if (!v.phase) return 'Read path: asking gk-results for this job. No phase until the first answer.';
     if (v.phase === 'RUNNING') return `gk-worker is scanning your code (try ${Math.max(attempt, 1)} of ${MAX_ATTEMPTS}). The page keeps polling.`;
-    if (v.phase === 'FAILED') return `Try ${attempt} of ${MAX_ATTEMPTS} failed. SQS gives the job out again later.`;
+    if (v.phase === 'FAILED') return `Try ${attempt} of ${MAX_ATTEMPTS} failed. The job waits in SQS until the visibility timeout ends, then a worker tries again.`;
     if (v.phase === 'DONE') {
       if (v.verdict === 'INCOMPLETE') return 'Ended INCOMPLETE. Not scanned is not safe, so it counts as blocked.';
       return v.reportReady ? 'Verdict from DynamoDB, masked report from S3, both read by gk-results. Done.' : 'Verdict saved in DynamoDB. gk-results is reading the report.';
@@ -316,7 +394,7 @@
     return attempt > 0 ? `Back in SQS, waiting for try ${attempt + 1} of ${MAX_ATTEMPTS}.` : 'Job saved in DynamoDB, waiting in SQS. The page polls gk-results.';
   }
 
-  // chip text + tone for the current job
+  // chip text and tone for the current job
   function phaseChip(view) {
     const v = view || {};
     if (v.mode === 'sending') return { label: 'Sending', tone: 'run' };
@@ -325,6 +403,8 @@
     if (v.mode === 'lost') return { label: 'Not found', tone: 'hold' };
     if (v.mode !== 'tracking') return { label: 'Idle', tone: 'idle' };
     if (v.paused && v.phase !== 'DONE') return { label: 'Paused', tone: 'idle' };
+    // no answer yet so say Checking and never a made up Queued
+    if (!v.phase) return { label: 'Checking', tone: 'run' };
     if (v.phase === 'RUNNING') return { label: 'Scanning', tone: 'run' };
     if (v.phase === 'FAILED') return { label: 'Retrying', tone: 'hold' };
     if (v.phase === 'DONE') {
@@ -334,13 +414,15 @@
     return (Number(v.attempt) || 0) > 0 ? { label: 'Retrying', tone: 'hold' } : { label: 'Queued', tone: 'run' };
   }
 
-  // ---- Scan Activity: 4 steps ----
+  // Scan Activity has 4 steps
   const STEPS = Object.freeze(['received', 'queued', 'scanning', 'report']);
 
   function lifecycle(view) {
     const v = view || {};
     const s = { received: 'todo', queued: 'todo', scanning: 'todo', report: 'todo' };
     if (v.mode !== 'tracking') return s;
+    // no answer yet so every step stays todo
+    if (!v.phase) return s;
     s.received = 'done';
     const attempt = Number(v.attempt) || 0;
     if (v.phase === 'RUNNING') {
@@ -362,6 +444,41 @@
       for (const name of STEPS) if (BUSY.has(s[name])) s[name] = 'paused';
     }
     return s;
+  }
+
+  // how much the 3 counts can say
+  // none means show dashes and never a fake 0
+  // INCOMPLETE and no report means nothing checked
+  // INCOMPLETE with a report means some files
+  function countsState(status, hasReport) {
+    const s = status || {};
+    if (s.verdict === 'INCOMPLETE') return hasReport ? 'partial' : 'none';
+    return hasReport || (s.counts && typeof s.counts === 'object') ? 'full' : 'none';
+  }
+
+  // the findings number color
+  // red when any HIGH and green only for PASS
+  // INCOMPLETE skipped some files so it is never green
+  function findingsTone(verdict, counts) {
+    if (counts && Number(counts.high) > 0) return 'stop';
+    return verdict === 'PASS' ? 'pass' : 'hold';
+  }
+
+  // what the report says when it has no findings
+  // INCOMPLETE skipped some files so never say nothing to fix
+  function noFindingsText(verdict) {
+    return verdict === 'INCOMPLETE'
+      ? 'No problems in the files that were scanned. Some files were not checked.'
+      : 'Nothing to fix. The scanner found no problems.';
+  }
+
+  // the server keeps the first 500 findings
+  // say so when some were cut
+  function cappedNote(loaded, counts) {
+    if (!counts) return '';
+    const total = (Number(counts.high) || 0) + (Number(counts.medium) || 0) + (Number(counts.low) || 0);
+    const n = Number(loaded) || 0;
+    return total > n ? `Showing the first ${n} of ${total} findings. The counts above are the full totals.` : '';
   }
 
   root.GK = Object.freeze({
@@ -403,10 +520,20 @@
     envLabel,
     isLocalHost,
     statusSummary,
+    splitLogText,
+    safeFilename,
+    fileProblem,
+    latencyText,
+    pollProblem,
+    stopNote,
     pipelineStates,
     nodeLabel,
     pipelineCaption,
     phaseChip,
     lifecycle,
+    countsState,
+    findingsTone,
+    noFindingsText,
+    cappedNote,
   });
 })(globalThis);

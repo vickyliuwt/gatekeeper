@@ -1,4 +1,4 @@
-// page layout + scope guards for the console
+// page layout and scope guards for the console
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -71,7 +71,8 @@ test('safety guard: no outside resources, no HTML writes, same-origin calls only
   assert.doesNotMatch(css, /url\(|@import/);
   assert.doesNotMatch(html, /\sstyle="|\son[a-z]+="/i);
   assert.doesNotMatch(app, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/);
-  // fetch: our own path only. getJson gets its path from the callers
+  // fetch only our own path
+  // getJson gets its path from the callers
   for (const call of app.matchAll(/fetch\(\s*([^,)]+)/g)) assert.match(call[1], /^(?:[`'"]\/|path$)/, `fetch must use our own path: ${call[1]}`);
   for (const call of app.matchAll(/getJson\(\s*([^,)]+)/g)) if (call[1] !== 'path') assert.match(call[1], /^[`'"]\//, `getJson must use our own path: ${call[1]}`);
 });
@@ -135,12 +136,14 @@ test('the report has a scan log seen by this browser', () => {
 test('review fixes: honest, accessible, no double scan', () => {
   assert.match(app, /event\.preventDefault\(\);\s*if \(ui\.scan\.disabled\) return undefined;/);
   assert.match(app, /Scan finished: \$\{info\.label\}, not scanned\./);
-  assert.match(app, /openedDone: fromLink/);
+  // openedDone was the same as fromLink so it is gone
+  assert.doesNotMatch(app, /openedDone/);
   assert.equal((html.match(/<span class="node-tile" aria-hidden="true"/g) || []).length, 8);
   assert.equal((html.match(/<span class="node-tile"/g) || []).length, 8);
   assert.match(html, /<kbd[^>]*aria-hidden="true"/);
   assert.match(app, /GET \/scans\/\{id\} → no answer/);
-  assert.match(app, /No answer from GateKeeper for 2 minutes/);
+  // 2 minute words now live in logic js as GK stopNote
+  assert.match(app, /GK\.stopNote\(/);
   assert.doesNotMatch(app, /The scan queue is busy/);
   assert.doesNotMatch(css + html + app + logic, /\bv8\d\b/);
   assert.doesNotMatch(html, /<p class="sev-note">/);
@@ -155,14 +158,15 @@ test('the folded scan log has an arrow like the finding cards', () => {
   const start = html.indexOf('<summary class="scan-log-head">');
   const head = html.slice(start, html.indexOf('</summary>', start));
   assert.match(head, /<svg class="ico chev" aria-hidden="true"><use href="#i-chevron"\/><\/svg>/);
-  // text reads "Scan log Seen by this browser", not glued together
+  // text reads Scan log then Seen by this browser
+  // not glued together
   assert.match(head, /Scan log<\/span> <span class="scan-log-note">/);
   assert.match(css, /\.scan-log\[open\][^{]*\.chev[^{]*\{[^}]*rotate\(180deg\)/);
 });
 
 test('stop watching and check again keep focus and say what happened', () => {
   const pause = app.slice(app.indexOf('function pauseWatching('), app.indexOf('function startTracking('));
-  // Stop watching goes away in render(), so check focus before it runs
+  // Stop watching goes away in render so check focus before it runs
   assert.match(pause, /const hadFocus = doc\.activeElement === ui\.stopWatch;[\s\S]*render\(\);/);
   assert.match(pause, /ui\.checkAgain\.hidden = false;[\s\S]*if \(byUser \|\| hadFocus\) ui\.checkAgain\.focus\(\);/);
   // log line and the spoken line only when the user pressed the button
@@ -170,13 +174,14 @@ test('stop watching and check again keep focus and say what happened', () => {
   const again = app.slice(app.indexOf("ui.checkAgain.addEventListener('click'"), app.indexOf("ui.stopWatch.addEventListener('click'"));
   assert.match(again, /startTracking\([^;]*\);\s*[\s\S]*if \(!ui\.stopWatch\.hidden\) ui\.stopWatch\.focus\(\);/);
   assert.match(again, /startTracking\([^;]*\);[\s\S]*announce\('Watching this scan again\.'\);/);
-  // GET /scans/{id} has no trace id, so check again keeps the one shown
+  // the status answer has no trace id so Check again keeps the one shown
   assert.match(again, /ui\.traceId\.textContent/);
 });
 
 test('step times only for a scan this page sent, never after a reopen', () => {
-  // after Check again or a link, the start time is unknown: show no +time
-  assert.match(app, /tracking\.seen\[name\] = tracking\.openedDone \|\| tracking\.fromLink \? null : elapsed;/);
+  // after Check again or a link we do not know the start time
+  // so show no step time
+  assert.match(app, /tracking\.seen\[name\] = tracking\.fromLink \? null : elapsed;/);
 });
 
 test('one busy list for the paused look, used by the path and the steps', () => {
@@ -201,10 +206,12 @@ test('local test buttons are hidden and load the marker code', () => {
   assert.match(html, /<template id="sample-retry">\/\/ demo-retry\.js: [^\n]*\n\/\/ SIMULATE_RETRY\n/);
   assert.match(html, /<template id="sample-incomplete">\/\/ demo-incomplete\.js: [^\n]*\n\/\/ SIMULATE_INCOMPLETE\n/);
   assert.match(html, /<template id="sample-slow">\/\/ demo-slow\.js: [^\n]*\n\/\/ SIMULATE_SLOW\n/);
-  // .segmented sets display: inline-flex, so hidden needs this rule to win
+  // the segmented class sets inline flex
+  // so hidden needs this rule to win
   assert.match(css, /\[hidden\] \{ display: none !important; \}/);
   assert.match(app, /localTests\.hidden = !GK\.isLocalHost\(win\.location\.hostname\)/);
-  // only one line may show or hide the row, so it can never show on AWS
+  // only one line may show or hide the row
+  // so it can never show on AWS
   assert.equal((app.match(/localTests\.hidden/g) || []).length, 1);
   assert.match(app, /loadSample\('sample-retry', 'demo-retry\.js'\)/);
   assert.match(app, /loadSample\('sample-incomplete', 'demo-incomplete\.js'\)/);

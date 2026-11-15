@@ -1,5 +1,7 @@
-/* GateKeeper console. cream canvas, soft gradients, calm motion */
-/* layout: centered shell, sidebar on wide screens, top bar on small ones */
+/* GateKeeper console */
+/* cream canvas and soft gradients and calm motion */
+/* layout is a centered shell */
+/* sidebar on wide screens and top bar on small ones */
 :root {
   color-scheme: light;
   --canvas: #FDF8F4;
@@ -31,6 +33,8 @@
   --run-bg: #F1EBFA;
   --hold: #8B5B22;
   --hold-bg: #FBEDD8;
+  --done: #6E5A61;
+  --done-bg: #F4ECE8;
   --r-sm: 12px;
   --r-md: 16px;
   --r-lg: 22px;
@@ -69,7 +73,7 @@ button { cursor: pointer; }
 .skip { position: absolute; left: 16px; top: -48px; z-index: 50; padding: 10px 14px; border-radius: var(--r-sm); background: var(--ink); color: #fff; text-decoration: none; transition: top 0.2s var(--ease); }
 .skip:focus { top: 12px; }
 
-/* shell + sidebar */
+/* shell and sidebar */
 .shell { width: min(calc(100% - 48px), var(--shell)); margin-inline: auto; display: grid; grid-template-columns: var(--side) minmax(0, 1fr); gap: 28px; align-items: start; }
 .side { position: sticky; top: 20px; z-index: 20; height: calc(100vh - 40px); max-height: 880px; margin-top: 20px; display: flex; flex-direction: column; gap: 22px; padding: 20px 14px 14px; border-radius: 24px; background: rgba(250, 241, 234, 0.6); border: 1px solid rgba(220, 203, 199, 0.55); -webkit-backdrop-filter: saturate(150%) blur(12px); backdrop-filter: saturate(150%) blur(12px); }
 .brand { display: inline-flex; align-items: center; gap: 10px; padding: 0 6px; color: var(--ink); text-decoration: none; }
@@ -156,7 +160,7 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
 .chip[data-tone="stop"] { background: var(--fail-bg); color: var(--fail); box-shadow: inset 0 0 0 1px rgba(173, 77, 85, 0.2); }
 .chip[data-tone="hold"] { background: var(--hold-bg); color: var(--hold); box-shadow: inset 0 0 0 1px rgba(139, 91, 34, 0.2); }
 
-/* stats (real data only) */
+/* stats with real data only */
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .stat { display: flex; gap: 13px; align-items: flex-start; padding: 15px 16px; background: rgba(255, 252, 250, 0.9); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); min-width: 0; }
 .stat > div { min-width: 0; }
@@ -168,31 +172,37 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
 .stat-value[data-tone="run"] { color: var(--run); }
 .stat-note { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* scanner + activity, side by side */
+/* scanner and activity side by side */
 .work { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(340px, 0.82fr); gap: 18px; align-items: stretch; }
 .scanner, .activity { display: flex; flex-direction: column; }
 .scanner form { display: flex; flex-direction: column; flex: 1; }
 .segmented { display: inline-flex; padding: 3px; border-radius: 12px; background: var(--oat); box-shadow: inset 0 0 0 1px var(--line); }
 .segmented button { border: 0; background: transparent; padding: 6px 11px; border-radius: 9px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
 .segmented button:hover { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(104, 78, 72, 0.08); }
-/* examples on top, local tests under them */
+/* examples on top and local tests under them */
 .head-tools { display: flex; flex: none; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 100%; }
-/* local tests row: only on my laptop, wraps on a phone */
+/* local tests row only on my laptop */
+/* it wraps on a phone */
 .local-tests { flex-wrap: wrap; align-items: center; max-width: 100%; }
 .local-label { padding: 0 6px 0 8px; font-size: 11.5px; font-weight: 650; color: var(--ink-3); white-space: nowrap; }
 .editor { display: flex; flex-direction: column; flex: 1; border-radius: var(--r-md); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); overflow: hidden; transition: box-shadow 0.2s var(--ease); }
 .editor:focus-within { box-shadow: inset 0 0 0 1px var(--coral), 0 0 0 4px rgba(232, 149, 138, 0.16); }
 .editor-bar { display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 12px; background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.bar-btn { display: inline-flex; align-items: center; gap: 5px; flex: none; min-height: 28px; padding: 0 9px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-2); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: background 0.2s var(--ease), color 0.2s var(--ease); }
+.bar-btn .ico { width: 15px; height: 15px; }
+.bar-btn:hover { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(104, 78, 72, 0.08); }
+.bar-btn:focus-visible { outline: 2px solid var(--coral-deep); outline-offset: 2px; }
 .lang { padding: 3px 8px; border-radius: 7px; background: var(--lavender-light); color: var(--run); font-size: 11px; font-weight: 750; letter-spacing: 0.06em; text-transform: uppercase; }
 .file-field { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--ink-3); }
-.file-field input { width: 150px; max-width: 100%; border: 0; border-radius: 7px; padding: 4px 6px; background: transparent; font-family: var(--mono); font-size: 13px; color: var(--ink); }
+.file-field input { width: calc(19ch + 12px); max-width: 100%; border: 0; border-radius: 7px; padding: 4px 6px; background: transparent; font-family: var(--mono); font-size: 13px; color: var(--ink); }
 .file-field input:hover { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
 .file-field input:focus { outline: none; background: var(--surface); box-shadow: inset 0 0 0 1px var(--coral); }
 .file-field input[aria-invalid="true"] { box-shadow: inset 0 0 0 1px var(--fail); }
 .editor-meta { margin-left: auto; font-size: 12px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .editor-meta.over { color: var(--fail); font-weight: 650; }
 .editor-body { flex: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: minmax(300px, 1fr); }
-.gutter { margin: 0; padding: 14px 10px 14px 14px; min-width: 44px; text-align: right; font-size: 13px; line-height: 1.65; color: var(--ink-3); background: var(--surface); user-select: none; overflow: hidden; border-right: 1px solid var(--line); }
+/* contain size so long code scrolls inside the box and not the page */
+.gutter { contain: size; margin: 0; padding: 14px 10px 14px 14px; min-width: 44px; text-align: right; font-size: 13px; line-height: 1.65; color: var(--ink-3); background: var(--surface); user-select: none; overflow: hidden; border-right: 1px solid var(--line); }
 .editor textarea { display: block; width: 100%; min-height: 300px; margin: 0; padding: 14px 16px; border: 0; resize: none; background: var(--surface); font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--ink); tab-size: 2; white-space: pre; overflow: auto; }
 .editor textarea:focus { outline: none; }
 .editor textarea::placeholder { color: var(--ink-3); }
@@ -224,9 +234,9 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
 .step-time { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 2px; }
 .step[data-state="active"] .step-dot { background: var(--run-bg); box-shadow: inset 0 0 0 2px var(--run); animation: ring 1.8s var(--ease) infinite; }
 .step[data-state="active"] .step-name { color: var(--run); }
-.step[data-state="done"] .step-dot { background: var(--pass); box-shadow: inset 0 0 0 2px var(--pass); }
+.step[data-state="done"] .step-dot { background: var(--done); box-shadow: inset 0 0 0 2px var(--done); }
 .step[data-state="done"] .step-dot::after { content: ""; position: absolute; left: 8px; top: 4px; width: 5px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(42deg); }
-.step[data-state="done"]:not(:last-child)::before { background: rgba(65, 108, 80, 0.4); }
+.step[data-state="done"]:not(:last-child)::before { background: rgba(110, 90, 97, 0.32); }
 .step[data-state="retry"] .step-dot, .step[data-state="hold"] .step-dot { background: var(--hold-bg); box-shadow: inset 0 0 0 2px var(--hold); }
 .step[data-state="retry"] .step-name, .step[data-state="hold"] .step-name { color: var(--hold); }
 .meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0 0; padding: 12px 14px; border-radius: var(--r-md); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
@@ -242,13 +252,15 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
 .log-lines { list-style: none; margin: 0; padding: 0; max-height: 150px; overflow: auto; font-family: var(--mono); font-size: 12px; line-height: 1.7; }
 .log-lines li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; color: var(--ink-2); }
 .log-lines time { color: var(--ink-3); }
+.log-lines .verb { display: inline-block; min-width: 3.4em; margin-right: 2px; font-weight: 700; color: var(--run); }
+.log-lines .verb[data-verb="POST"] { color: var(--coral-deep); }
 .log-lines li[data-tone="pass"] span { color: var(--pass); }
 .log-lines li[data-tone="stop"] span { color: var(--fail); }
 .log-lines li[data-tone="hold"] span { color: var(--hold); }
 .problem { display: grid; justify-items: center; align-content: center; gap: 10px; text-align: center; padding: 26px 12px; border-radius: var(--r-md); background: #FFFBF4; box-shadow: inset 0 0 0 1px rgba(139, 91, 34, 0.2); }
 .problem p { max-width: 360px; color: var(--ink-2); }
 
-/* AWS path card: write path + read path */
+/* AWS path card with write path and read path */
 .paths { display: grid; gap: 12px; }
 .path { padding: 12px 14px 14px; border-radius: 18px; background: rgba(252, 244, 239, 0.55); box-shadow: inset 0 0 0 1px var(--line); }
 .path[data-path="read"] { background: var(--read-bg); box-shadow: none; border: 1px dashed rgba(117, 101, 150, 0.32); }
@@ -273,14 +285,18 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
 .node[data-state="active"] .node-state { color: var(--run); }
 .node[data-state="live"] .node-tile { background: var(--run-bg); color: var(--run); box-shadow: inset 0 0 0 1px rgba(117, 101, 150, 0.22); }
 .node[data-state="live"] .node-state { color: var(--run); animation: blink 1.6s ease-in-out infinite; }
-.node[data-state="done"] .node-tile { background: var(--pass-bg); color: var(--pass); box-shadow: inset 0 0 0 1px rgba(65, 108, 80, 0.22); }
-.node[data-state="done"] .node-state { color: var(--pass); }
-.rail-write .node[data-state="done"]:not(:last-child)::after { background: rgba(65, 108, 80, 0.45); }
+.node[data-state="done"] .node-tile { background: var(--done-bg); color: var(--done); box-shadow: inset 0 0 0 1px rgba(110, 90, 97, 0.2); }
+.node[data-state="done"] .node-state { color: var(--done); }
+.rail-write .node[data-state="done"]:not(:last-child)::after { background: rgba(110, 90, 97, 0.38); }
 .node[data-state="retry"], .node[data-state="hold"] { background: #FFFBF4; box-shadow: inset 0 0 0 1px rgba(139, 91, 34, 0.28); }
 .node[data-state="retry"] .node-tile, .node[data-state="hold"] .node-tile { background: var(--hold-bg); color: var(--hold); }
 .node[data-state="retry"] .node-state, .node[data-state="hold"] .node-state { color: var(--hold); }
 .node[data-state="paused"] .node-state { color: var(--ink-3); }
 .step[data-state="paused"] .step-name { color: var(--ink-3); }
+.step[data-state="paused"] .step-dot { background: var(--lavender-light); box-shadow: inset 0 0 0 2px rgba(109, 93, 143, 0.55); }
+.step[data-state="paused"] .step-dot::after { content: ""; position: absolute; left: 7px; top: 6px; width: 3px; height: 10px; border-radius: 1px; background: var(--run); box-shadow: 5px 0 0 var(--run); }
+.node[data-state="paused"] { box-shadow: inset 0 0 0 1px rgba(109, 93, 143, 0.35); background: var(--read-bg); }
+.node[data-state="paused"] .node-tile { background: var(--lavender-light); color: var(--run); box-shadow: inset 0 0 0 1px rgba(109, 93, 143, 0.25); }
 .node[data-state="error"] { background: #FFF8F7; box-shadow: inset 0 0 0 1px rgba(173, 77, 85, 0.3); }
 .node[data-state="error"] .node-tile { background: var(--fail-bg); color: var(--fail); }
 .node[data-state="error"] .node-state { color: var(--fail); }
@@ -436,7 +452,8 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
 .footer-brand .ico { color: var(--coral-deep); }
 .footer-team { margin-left: auto; color: var(--ink-3); }
 
-/* motion: one calm entrance for the first screen, then only state changes */
+/* motion */
+/* one calm entrance for the first screen then only state changes */
 .js .reveal { opacity: 0; transform: translateY(10px); transition: opacity 0.65s var(--ease), transform 0.65s var(--ease); }
 .js .reveal.is-in { opacity: 1; transform: none; }
 .js .reveal.d2 { transition-delay: 0.07s; }
@@ -450,7 +467,8 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 @keyframes open { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
-/* main column gets narrow: stack things (container queries) */
+/* main column gets narrow so stack things */
+/* container queries */
 @container main (max-width: 1000px) {
   .why-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .flow-7 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -511,7 +529,8 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
   .grad { white-space: normal; }
 }
 
-/* small screens: the sidebar turns into a top bar with a scrolling nav row */
+/* small screens */
+/* the sidebar turns into a top bar with a scrolling nav row */
 @media (max-width: 1099px) {
   html { scroll-padding-top: 116px; }
   .shell { width: min(calc(100% - 28px), var(--shell)); grid-template-columns: minmax(0, 1fr); gap: 0; }
@@ -537,32 +556,35 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
   .js .reveal { opacity: 1; transform: none; }
 }
 
-/* grid items: let long code lines scroll inside, not push the page */
+/* grid items let long code lines scroll inside and not push the page */
 .findings, .steps, .log-lines, .lanes, .why-grid > *, .paths, .path { min-width: 0; }
 .findings, .steps { grid-template-columns: minmax(0, 1fr); }
 .finding, .step, .card, .stat { min-width: 0; }
 
-/* ---- layout fixes ---- */
-/* sidebar chip: long text wraps, no cut off words */
+/* layout fixes */
+/* sidebar chip */
+/* long text wraps with no cut off words */
 .env { display: flex; align-items: flex-start; border-radius: 12px; line-height: 1.35; }
 .env span:last-child { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 .env-dot { margin-top: 5px; }
 /* tags sit next to the hero buttons */
 .hero-cta { align-items: center; }
 .hero-cta .tags { margin: 0 0 0 4px; }
-/* show / hide button inside the access code box */
+/* show and hide button inside the access code box */
 .input-icon { position: relative; }
 .input-icon input { padding-right: 46px; }
 .eye-btn { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); }
 .eye-btn[aria-pressed="true"] { color: var(--coral-deep); background: var(--surface-2); }
-/* wide screens: smaller hero, so the scan button shows on the first screen */
+/* wide screens get a smaller hero */
+/* so the scan button shows on the first screen */
 @media (min-width: 1100px) {
   .hero { padding: 22px 28px 20px; }
   .hero h1 { margin-top: 12px; font-size: clamp(2rem, 3.1vw, 2.6rem); }
   .lede { max-width: 700px; margin-top: 8px; }
   .hero-cta { margin-top: 14px; }
 }
-/* laptop height (1000 px or less): tighter gaps, shorter editor */
+/* laptop height 1000 px or less */
+/* tighter gaps and a shorter editor */
 @media (min-width: 1100px) and (max-height: 1000px) {
   .main { gap: 16px; padding-top: 16px; }
   .side { margin-top: 16px; top: 16px; height: calc(100vh - 32px); }
@@ -574,8 +596,68 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
   .submit-row { margin-top: 14px; }
 }
 .eye-btn .ico { position: static; transform: none; }
-/* short laptops (900 px tall or less): hide the hero label */
+/* short laptops 900 px tall or less */
+/* hide the hero label */
 @media (min-width: 1100px) and (max-height: 900px) {
   .hero .eyebrow { display: none; }
   .hero h1 { margin-top: 0; }
+}
+
+/* request times and repeats and Clear and idle steps and routes */
+/* each log line has the time and the text and how long the request took here */
+.log-lines li { grid-template-columns: auto minmax(0, 1fr) auto; }
+.log-lines li > .ms, .log-lines li[data-tone] > .ms { color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.log-lines .count, .log-lines li[data-tone] span.count { color: var(--ink-3); font-weight: 650; }
+/* Clear sits next to Open js file and is off when the box is empty */
+.bar-btn:disabled { opacity: 0.45; cursor: default; background: transparent; box-shadow: none; color: var(--ink-2); }
+/* small screens wrap the editor bar so the page never gets wide */
+/* narrow card puts tools under the title so the title never gets squeezed */
+.scanner .card-head { flex-wrap: wrap; }
+.scanner .head-main { flex: 1 1 250px; min-width: 0; }
+/* local tests row is for localhost only and sits under the form */
+.scanner > .local-tests { align-self: flex-start; margin-top: 14px; }
+/* idle card lists the 4 real steps after Run in plain text */
+.next-steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; width: min(100%, 340px); text-align: left; counter-reset: step; }
+.next-steps li { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 11px; background: rgba(255, 252, 250, 0.85); box-shadow: inset 0 0 0 1px var(--line); font-size: 12.5px; color: var(--ink-2); }
+.next-steps li::before { counter-increment: step; content: counter(step); display: grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-strong); font-size: 11px; font-weight: 700; color: var(--ink-3); }
+/* routes table numbers match Terraform and the routes test checks them */
+.routes { margin-top: 18px; }
+.routes-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.routes-head h3 { margin: 0; font-size: 16px; }
+.routes-head .sub { margin: 2px 0 0; }
+.routes-table code { font-size: 12.5px; }
+.routes-table td:first-child { white-space: nowrap; }
+.routes-table wbr { display: none; }
+.routes-table td:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.rverb { display: inline-block; min-width: 44px; margin-right: 8px; padding: 2px 7px; border-radius: 6px; font-family: var(--mono); font-size: 11px; font-weight: 700; text-align: center; color: var(--run); background: var(--lavender-light); }
+.rverb-write { color: var(--coral-deep); background: #FDF2EF; }
+.route-intake td { color: var(--ink-3); }
+@media (max-width: 767px) {
+  .routes-table td:first-child, .routes-table td:last-child { white-space: normal; }
+  /* phones may break the long report route after its last slash */
+  .routes-table wbr { display: inline; }
+}
+/* short laptop screens get a shorter editor so Run stays in view */
+@media (min-width: 1100px) and (max-height: 820px) {
+  .editor-body { grid-template-rows: minmax(150px, 1fr); }
+  .editor textarea { min-height: 150px; height: 150px; }
+  .stat { padding: 10px 12px; }
+}
+/* more fixes */
+/* done steps and boxes use calm cocoa */
+/* green only means PASS */
+/* not scanned shows dashes and quiet notes and never a fake 0 */
+.sev-list[data-state="none"] dd { color: var(--ink-3); }
+.sev-list[data-state="none"] .sev-dot { background: var(--line-strong); }
+.cap-note { margin-top: 10px; font-size: 13px; }
+/* editor bar */
+/* file box shrinks first then the bar wraps */
+/* it never goes under a button */
+.editor-bar { flex-wrap: wrap; row-gap: 6px; }
+.file-field { flex: 1 1 96px; max-width: calc(19ch + 40px); }
+.file-field input { width: 100%; min-width: 0; }
+/* touch screens and phones have no Ctrl key */
+/* so no shortcut hint */
+@media (max-width: 600px), (hover: none) and (pointer: coarse) {
+  .btn-scan kbd { display: none; }
 }

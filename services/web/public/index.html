@@ -42,6 +42,8 @@
   <symbol id="i-overview" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></symbol>
   <symbol id="i-poll" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3M19.5 12a7.5 7.5 0 0 1-12.8 5.3"/><path d="M17.5 3.8v3.1h-3.1M6.5 20.2v-3.1h3.1"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6.5v11M15 6.5v11"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></symbol>
 </svg>
 
 <a class="skip" href="#scan">Skip to the scanner</a>
@@ -133,12 +135,6 @@
               <button type="button" id="load-risky">Risky example</button>
               <button type="button" id="load-clean">Clean example</button>
             </div>
-            <div class="segmented local-tests" id="local-tests" role="group" aria-label="Local tests" hidden>
-              <span class="local-label" aria-hidden="true">Local tests</span>
-              <button type="button" id="load-retry">Retry</button>
-              <button type="button" id="load-incomplete">Incomplete</button>
-              <button type="button" id="load-slow">Slow 2 min</button>
-            </div>
           </div>
         </div>
         <form id="scan-form" novalidate>
@@ -146,6 +142,9 @@
             <div class="editor-bar">
               <span class="lang">JavaScript</span>
               <label class="file-field"><span class="visually-hidden">File name</span><svg class="ico" aria-hidden="true"><use href="#i-report"/></svg><input id="filename" name="filename" value="snippet.js" maxlength="100" autocomplete="off" spellcheck="false"></label>
+              <button type="button" class="bar-btn" id="open-file" title="Reads the file in this browser. Nothing is sent until you scan."><svg class="ico" aria-hidden="true"><use href="#i-code"/></svg>Open .js file</button>
+              <input type="file" id="file-input" class="visually-hidden" accept=".js,.mjs,.cjs" tabindex="-1" aria-hidden="true">
+              <button type="button" class="bar-btn" id="clear-code" disabled title="Empties the code box. Nothing is sent."><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg>Clear</button>
               <span class="editor-meta" id="size-hint">0 lines · 0.0 KB of 100 KB</span>
             </div>
             <div class="editor-body">
@@ -165,6 +164,13 @@
           <p class="form-error" id="form-error" role="alert" hidden></p>
           <p class="fine"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg>Pasted code is deleted after 1 day. Anyone with a report link can open it. Secrets in it are masked.</p>
         </form>
+        <!-- localhost only and app js hides it on AWS and it sits under the form -->
+        <div class="segmented local-tests" id="local-tests" role="group" aria-label="Local tests" hidden>
+          <span class="local-label" aria-hidden="true">Local tests</span>
+          <button type="button" id="load-retry">Retry</button>
+          <button type="button" id="load-incomplete">Incomplete</button>
+          <button type="button" id="load-slow">Slow 2 min</button>
+        </div>
       </section>
 
       <section class="card activity reveal d4" id="activity" aria-labelledby="act-title" data-busy="false">
@@ -179,14 +185,20 @@
         <div class="empty" id="act-empty">
           <span class="tile tile-lg" aria-hidden="true"><svg class="ico"><use href="#i-hourglass"/></svg></span>
           <p class="empty-title">Ready when you are</p>
-          <p class="empty-text">Start a scan to watch the job move through AWS. This page asks GET /scans/{jobId} every 2 s, then every 5 s, for up to 2 minutes.</p>
+          <p class="empty-text">Press Run and this card follows the real job. The page asks GET /scans/{jobId} every 2 s, then every 5 s, for up to 2 minutes.</p>
+          <ol class="next-steps" aria-label="What happens after Run">
+            <li>POST /scans answers 202 with a job ID</li>
+            <li>The job waits in SQS for a free worker</li>
+            <li>gk-worker runs the course SAST rules</li>
+            <li>Verdict in DynamoDB, masked report in S3</li>
+          </ol>
           <button type="button" class="btn btn-quiet btn-sm" id="last-scan" hidden>Open my last scan</button>
         </div>
         <div class="live" id="act-live" hidden>
           <ol class="steps">
             <li class="step" data-step="received" data-state="todo"><span class="step-dot" aria-hidden="true"></span><div><p class="step-name">Received</p><p class="step-desc">gk-submit saved the code in S3 and the job in DynamoDB, then answered 202.</p></div><span class="step-time" data-step-time="received"></span></li>
             <li class="step" data-step="queued" data-state="todo"><span class="step-dot" aria-hidden="true"></span><div><p class="step-name">Queued</p><p class="step-desc">The job waits in the SQS queue for a free worker.</p></div><span class="step-time" data-step-time="queued"></span></li>
-            <li class="step" data-step="scanning" data-state="todo"><span class="step-dot" aria-hidden="true"></span><div><p class="step-name">Scanning</p><p class="step-desc">The worker Lambda runs the course rules. A failed try comes back from SQS.</p></div><span class="step-time" data-step-time="scanning"></span></li>
+            <li class="step" data-step="scanning" data-state="todo"><span class="step-dot" aria-hidden="true"></span><div><p class="step-name">Scanning</p><p class="step-desc">The worker Lambda runs the course rules. If a try fails, SQS gives the job out again.</p></div><span class="step-time" data-step-time="scanning"></span></li>
             <li class="step" data-step="report" data-state="todo"><span class="step-dot" aria-hidden="true"></span><div><p class="step-name">Report</p><p class="step-desc">Verdict in DynamoDB, masked report in S3, read by gk-results.</p></div><span class="step-time" data-step-time="report"></span></li>
           </ol>
           <dl class="meta">
@@ -197,12 +209,12 @@
           </dl>
           <p class="status-line" id="status-text">Waiting for the first update.</p>
           <div class="live-actions">
-            <button type="button" class="btn btn-quiet btn-sm" id="stop-watch" hidden><svg class="ico" aria-hidden="true"><use href="#i-hourglass"/></svg>Stop watching</button>
+            <button type="button" class="btn btn-quiet btn-sm" id="stop-watch" hidden><svg class="ico" aria-hidden="true"><use href="#i-pause"/></svg>Stop watching</button>
             <button type="button" class="btn btn-quiet btn-sm" id="check-again" hidden><svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg>Check again</button>
             <a class="btn btn-quiet btn-sm" href="#report" id="view-report" hidden>View report<svg class="ico" aria-hidden="true"><use href="#i-down"/></svg></a>
           </div>
           <div class="log">
-            <p class="log-title">What this page asked AWS</p>
+            <p class="log-title">What this page asked AWS · times seen in this browser</p>
             <ol class="log-lines" id="log-lines"></ol>
           </div>
         </div>
@@ -271,7 +283,7 @@
             <svg class="donut" id="donut" viewBox="0 0 120 120" aria-hidden="true"><circle class="donut-track" cx="60" cy="60" r="48"/></svg>
             <figcaption><span class="donut-total" id="donut-total">0</span><span class="donut-label" id="donut-label">findings</span></figcaption>
           </figure>
-          <dl class="sev-list">
+          <dl class="sev-list" id="sev-list" data-state="full">
             <div class="sev-row" data-sev="high"><dt><span class="sev-dot" aria-hidden="true"></span>High</dt><dd id="count-high">0</dd><dd class="sev-note">blocks the merge</dd></div>
             <div class="sev-row" data-sev="medium"><dt><span class="sev-dot" aria-hidden="true"></span>Medium</dt><dd id="count-medium">0</dd><dd class="sev-note">warning only</dd></div>
             <div class="sev-row" data-sev="low"><dt><span class="sev-dot" aria-hidden="true"></span>Low</dt><dd id="count-low">0</dd><dd class="sev-note">warning only</dd></div>
@@ -289,6 +301,7 @@
         </div>
         <ol class="findings" id="findings"></ol>
         <p class="quiet" id="findings-empty" hidden></p>
+        <p class="quiet cap-note" id="findings-cap" hidden></p>
         <div class="skipped" id="skipped" hidden>
           <p class="skipped-title"><svg class="ico" aria-hidden="true"><use href="#i-alert"/></svg>Not scanned</p>
           <ul id="skipped-list"></ul>
@@ -355,7 +368,7 @@
           <span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-queue"/></svg></span>
           <h3>Why SQS in the middle</h3>
           <p>gk-submit answers 202 in about a second. The slow scan runs in the background.</p>
-          <ul><li>a failed try comes back after 360 s</li><li>5 tries, then the dead-letter queue + an alarm</li><li>a burst waits in line, not at the door</li></ul>
+          <ul><li>a failed try comes back when the 360 s visibility timeout ends</li><li>5 tries, then the dead-letter queue + an alarm</li><li>a burst waits in line, not at the door</li></ul>
         </article>
         <article class="card why">
           <span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-db"/></svg></span>
@@ -375,6 +388,25 @@
           <p>Too big, a timeout, or nothing to scan means we never checked it. Not scanned is not safe.</p>
           <ul><li>PASS → success, merge allowed</li><li>FAIL → failure, merge blocked</li><li>INCOMPLETE → error, merge blocked</li></ul>
         </article>
+      </div>
+      <div class="card routes">
+        <div class="routes-head">
+          <span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-gateway"/></svg></span>
+          <div><h3 id="routes-title">The routes behind this page</h3><p class="sub">One HTTP API. Each route has its own rate limit from Terraform. Any other path gets 404.</p></div>
+        </div>
+        <div class="table-wrap">
+          <table class="table routes-table" aria-labelledby="routes-title">
+            <thead><tr><th scope="col">Route</th><th scope="col">Lambda</th><th scope="col">What it does</th><th scope="col">Limit</th></tr></thead>
+            <tbody>
+              <tr data-route="POST /scans"><td data-label="Route"><span class="rverb rverb-write">POST</span><code>/scans</code></td><td data-label="Lambda"><code>gk-submit</code></td><td data-label="What it does">checks the access code, saves code + job, sends the job to SQS</td><td data-label="Limit">1/s, burst 5</td></tr>
+              <tr data-route="GET /scans/{jobId}"><td data-label="Route"><span class="rverb">GET</span><code>/scans/{jobId}</code></td><td data-label="Lambda"><code>gk-results</code></td><td data-label="What it does">small status from DynamoDB, the route this page polls</td><td data-label="Limit">10/s, burst 20</td></tr>
+              <tr data-route="GET /scans/{jobId}/report"><td data-label="Route"><span class="rverb">GET</span><code>/scans/{jobId}/<wbr>report</code></td><td data-label="Lambda"><code>gk-results</code></td><td data-label="What it does">masked report from S3, read once the job is DONE</td><td data-label="Limit">5/s, burst 10</td></tr>
+              <tr data-route="GET /scans"><td data-label="Route"><span class="rverb">GET</span><code>/scans</code></td><td data-label="Lambda"><code>gk-results</code></td><td data-label="What it does">newest 20 PR checks, never a paste</td><td data-label="Limit">5/s, burst 10</td></tr>
+              <tr data-route="GET /"><td data-label="Route"><span class="rverb">GET</span><code>/</code></td><td data-label="Lambda"><code>gk-results</code></td><td data-label="What it does">this page, with a strict CSP</td><td data-label="Limit">5/s, burst 10</td></tr>
+              <tr class="route-intake" data-route="POST /webhooks/github"><td data-label="Route"><span class="rverb rverb-write">POST</span><code>/webhooks/github</code></td><td data-label="Lambda"><code>gk-webhook</code></td><td data-label="What it does">signed pull request events from GitHub (webhook intake)</td><td data-label="Limit">10/s, burst 25</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
       <div class="card guard">
         <h3><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg>Security built in</h3>
