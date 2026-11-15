@@ -1,5 +1,7 @@
-// real AWS calls for the 2 web Lambdas (DynamoDB, S3, SQS, SSM)
-// handlers only see these small objects, so tests use src/memory.js instead
+// real AWS calls for the 2 web lambdas
+// DynamoDB and S3 and SQS and SSM
+// handlers only see these small objects
+// so tests use the memory file instead
 import { GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { SendMessageCommand } from '@aws-sdk/client-sqs';
@@ -74,8 +76,8 @@ export function createAwsQueue({ sqsClient, queueUrl }) {
   };
 }
 
-// read the access code (SSM SecureString) and keep it 5 min
-// so a new code works within 5 min, no redeploy
+// read the access code from SSM and keep it 5 min
+// so a new code works within 5 min with no redeploy
 export function createSecretReader({ ssmClient, name, ttlMs = 5 * 60 * 1000, now = () => Date.now() }) {
   if (!name) throw new Error('DEMO_CODE_PARAM is required');
   let cached = null;

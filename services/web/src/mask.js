@@ -1,12 +1,20 @@
-// masking rules (the page is public):
-//   1. HARDCODED_SECRET: each quoted text keeps first 4 chars, rest -> ****
-//      4 chars or less -> ****. empty quotes stay empty
-//   2. other findings on the same file + line are masked the same way
-//      (the course scanner copies the whole line into evidence)
-//   3. known token shapes (sk_live_, ghp_, AKIA...) are masked in every finding
-//   4. a served report keeps only REPORT_FIELDS and FINDING_FIELDS (allow-list)
-//   quote not closed (scanner cuts lines at 100 chars) -> masked to the end
-// masking twice = same text, so the worker and gk-results can both do it
+// masking rules because the page is public
+// rule 1 for a hardcoded secret
+// each quoted text keeps the first 4 chars and the rest turns into stars
+// 4 chars or less all turn into stars
+// empty quotes stay empty
+// rule 2
+// other findings on the same file and line are masked the same way
+// the course scanner copies the whole line into evidence
+// rule 3
+// known token shapes are masked in every finding
+// like Stripe live keys and GitHub tokens and AWS key ids
+// rule 4
+// a served report keeps only the fields in the two allow lists below
+// quote not closed because the scanner cuts lines at 100 chars
+// so mask to the end
+// masking twice gives the same text
+// so the worker and the results lambda can both do it
 const QUOTED = /(['"`])((?:\\.|(?!\1)[^\\])*)(\1|$)/g;
 const TOKEN_SHAPES = [
   /sk_(?:live|test)_[A-Za-z0-9]{6,}/g,
@@ -51,20 +59,22 @@ export function maskFindings(findings) {
   return list.map((f) => maskFinding(f, secretLines));
 }
 
-// old helper, kept for tests: the text rule for one secret finding
+// old helper kept for tests
+// the text rule for one secret finding
 export function maskEvidenceText(text, { quoted = false } = {}) {
   return quoted ? maskSecretText(text) : maskTokens(text);
 }
 
 export const MAX_FINDINGS = 500;
 
-// public page: a report leaves gk-results with these fields only
-// anything else a worker adds (raw output, file text, debug data) gets dropped
+// public page so a report leaves the results lambda with these fields only
+// anything else a worker adds gets dropped
+// like raw output or file text or debug data
 export const REPORT_FIELDS = Object.freeze([
   'jobId', 'source', 'repo', 'prNumber', 'headSha', 'scannerVersion', 'scannedAt',
   'verdict', 'counts', 'scannedFiles', 'skippedFiles',
 ]);
-// the 9 fields the course scanner's scanCode() gives for one finding
+// the 9 fields the course scanner gives for one finding
 export const FINDING_FIELDS = Object.freeze(['id', 'name', 'severity', 'description', 'message', 'file', 'line', 'column', 'evidence']);
 
 function pick(source, fields) {
@@ -73,8 +83,8 @@ function pick(source, fields) {
   return out;
 }
 
-// the scanner's own HTTP server calls the list "vulnerabilities"
-// that shape is shown and masked the same way as "findings"
+// the scanner server calls the list vulnerabilities
+// that shape is shown and masked the same way as findings
 export function reportFindings(report) {
   if (Array.isArray(report?.findings)) return report.findings;
   if (Array.isArray(report?.vulnerabilities)) return report.vulnerabilities;

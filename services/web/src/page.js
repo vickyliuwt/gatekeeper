@@ -1,6 +1,9 @@
-// builds the page once per cold start. gk-results serves it at GET /
-// (no CloudFront in Learner Lab). style.css, logic.js, app.js go inline
-// the CSP allows exactly those inline blocks by SHA-256 hash. no CORS
+// builds the page once per cold start
+// the results lambda serves it at the root path
+// no CloudFront in Learner Lab
+// the css and both js files go inline
+// the CSP allows exactly those inline blocks by their sha256 hash
+// no CORS
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -21,7 +24,7 @@ export function renderPage({ template, style, scripts }) {
     throw new Error('index.html needs the <!--STYLE--> and <!--SCRIPT--> markers');
   }
 
-  // replacer functions keep any "$" in the files as is
+  // replacer functions keep any dollar sign in the files as is
   const page = template
     .replace('<!--STYLE-->', () => `<style>${style}</style>`)
     .replace('<!--SCRIPT-->', () => `<script>${script}</script>`);

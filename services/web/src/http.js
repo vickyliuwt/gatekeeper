@@ -1,4 +1,5 @@
-// reply helpers. every reply gets the safe headers
+// reply helpers
+// every reply gets the safe headers
 const JSON_HEADERS = Object.freeze({
   'content-type': 'application/json; charset=utf-8',
   'cache-control': 'no-store',
@@ -9,7 +10,8 @@ export function json(statusCode, body) {
   return { statusCode, headers: { ...JSON_HEADERS }, body: JSON.stringify(body) };
 }
 
-// error body: { error, message, traceId }. no stack trace
+// error body has error and message and traceId
+// no stack trace
 export function fail(statusCode, error, message, traceId) {
   const body = { error, message };
   if (traceId) body.traceId = traceId;
@@ -25,7 +27,8 @@ export function html(statusCode, body, contentSecurityPolicy) {
       'content-security-policy': contentSecurityPolicy,
       'x-content-type-options': 'nosniff',
       'x-frame-options': 'DENY',
-      // new browsers ignore X-XSS-Protection (the CSP does the real work)
+      // new browsers ignore the old XSS header
+      // the CSP does the real work
       // but the course pentest tool checks for this exact value
       'x-xss-protection': '1; mode=block',
       'referrer-policy': 'no-referrer',

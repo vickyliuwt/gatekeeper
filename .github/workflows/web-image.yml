@@ -1,10 +1,12 @@
 name: web-image
 
-# optional (proposal: GitHub Actions copies the image to Docker Hub)
-# after a merge to main that touches services/web: web image -> Docker Hub
-# never touches AWS, NOT a required check
-# needs secrets DOCKERHUB_USERNAME + DOCKERHUB_TOKEN
-# and repo variable DOCKERHUB_ENABLED = true
+# optional
+# from our proposal GitHub Actions copies the image to Docker Hub
+# after a merge to main that touches the web service
+# the web image goes to Docker Hub
+# never touches AWS and is not a required check
+# needs the two Docker Hub secrets for the user name and the token
+# and the Docker Hub enabled repo variable set to true
 on:
   push:
     branches: [main]
@@ -37,7 +39,8 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/gatekeeper-web:${{ github.sha }}
             ${{ secrets.DOCKERHUB_USERNAME }}/gatekeeper-web:latest
-          # labels: where the image came from (same idea as T5E3)
+          # labels say where the image came from
+          # same idea as my lab T5E3
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}

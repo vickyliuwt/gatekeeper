@@ -1,4 +1,4 @@
-// served report keeps only known fields, so an extra worker field
+// a served report keeps only known fields so an extra worker field
 // never reaches the public page
 import test from 'node:test';
 import assert from 'node:assert/strict';

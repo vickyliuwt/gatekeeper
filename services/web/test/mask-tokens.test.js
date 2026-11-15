@@ -1,5 +1,7 @@
-// masking rule 3: token shapes are masked in every finding (also outside quotes)
-// a report shows at most 500 findings. public page, so extra safety
+// masking rule 3
+// token shapes are masked in every finding even outside quotes
+// a report shows at most 500 findings
+// public page so extra safety
 // on top of rules 1 and 2
 import test from 'node:test';
 import assert from 'node:assert/strict';

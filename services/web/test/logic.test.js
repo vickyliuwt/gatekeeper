@@ -49,7 +49,7 @@ test('small formatting helpers', () => {
   assert.equal(GK.formatKB(1536), '1.5 KB');
 });
 
-// ---- console helpers ----
+// console helpers
 const all = (state) => Object.fromEntries(GK.PIPELINE.map((n) => [n, state]));
 
 test('the write path lights from the real phase only', () => {
@@ -76,7 +76,8 @@ test('the read path polls while the job runs and reads the report once at DONE',
   assert.deepEqual(R({ mode: 'tracking', phase: 'RUNNING', attempt: 1 }), ['live', 'live', 'live']);
   assert.deepEqual(R({ mode: 'tracking', phase: 'DONE', verdict: 'PASS', reportReady: false }), ['done', 'active', 'active']);
   assert.deepEqual(R({ mode: 'tracking', phase: 'DONE', verdict: 'PASS', reportReady: true }), ['done', 'done', 'done']);
-  // a dead link: nothing was sent now, the read path finds no item
+  // a dead link
+  // nothing was sent now and the read path finds no item
   const lost = GK.pipelineStates({ mode: 'lost' });
   assert.deepEqual(GK.WRITE_PATH.map((n) => lost[n]), ['idle', 'idle', 'idle', 'idle', 'idle']);
   assert.deepEqual(R({ mode: 'lost' }), ['done', 'done', 'error']);

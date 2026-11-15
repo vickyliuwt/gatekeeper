@@ -1,23 +1,26 @@
-// local container test: sends sample API Gateway events to the web image
-//   9003 = gk-results, 9004 = gk-submit (emulator uses 8080 inside)
-//   repo root:     docker compose --profile web up --build -d
-//   services/web:  node scripts/invoke-local.js         no AWS needed
-//                  node scripts/invoke-local.js --aws   + the AWS checks
-//   repo root:     docker compose --profile web down
-// prints status codes only, never a response body
+// local container test
+// sends sample API Gateway events to the web image
+// port 9003 is results and 9004 is submit
+// the emulator uses 8080 inside
+// start the web profile with docker compose from the repo root
+// then run this file from the web folder with no AWS needed
+// add the aws flag to run the AWS checks too
+// stop the web profile with docker compose when you are done
+// prints status codes only and never a response body
 import { readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-// true when node started this file (windows: compare real paths, ignore case)
+// true when node started this file
+// on windows compare real paths and ignore case
 function isMainModule(metaUrl) {
   if (!process.argv[1]) return false;
   const same = (a, b) => (process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b);
   const self = fileURLToPath(metaUrl);
   try {
     if (same(realpathSync(self), realpathSync(process.argv[1]))) return true;
-  } catch { /* fall through to the file-name check */ }
+  } catch { /* fall through to the file name check */ }
   return same(basename(self), basename(process.argv[1]));
 }
 

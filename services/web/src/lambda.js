@@ -1,6 +1,7 @@
-// Lambda entry points. one image, two functions:
-//   gk-results: src/lambda.resultsHandler   (the 4 GET routes)
-//   gk-submit:  src/lambda.submitHandler    (POST /scans)
+// lambda entry points
+// one image and two functions
+// results lambda uses resultsHandler for the 4 GET routes
+// submit lambda uses submitHandler for POST scans
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { S3Client } from '@aws-sdk/client-s3';

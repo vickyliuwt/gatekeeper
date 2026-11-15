@@ -1,5 +1,7 @@
-// gk-results: GET /, GET /scans, GET /scans/{jobId}, GET /scans/{jobId}/report
-// read only: no secret, no writes, so the open routes can't change anything
+// results lambda has 4 GET routes
+// the page and the list and one job and one report
+// read only with no secret and no writes
+// so the open routes can not change anything
 import { fail, html, json } from './http.js';
 import { isJobId } from './validate.js';
 import { maskReport } from './mask.js';
@@ -7,7 +9,8 @@ import { maskReport } from './mask.js';
 export const MAX_ATTEMPTS = 5;
 const RECENT_LIMIT = 20;
 
-// the small object the page polls. verdict and counts stay null until DONE
+// the small object the page polls
+// verdict and counts stay null until DONE
 export function toStatus(job) {
   const done = job.phase === 'DONE';
   const status = {

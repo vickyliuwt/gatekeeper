@@ -1,4 +1,5 @@
-// API Gateway HTTP API event (payload 2.0) -> plain request -> route
+// turn the API Gateway event into a plain request
+// then send it to the right route
 // never sends a stack trace back
 import { fail } from './http.js';
 

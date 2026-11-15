@@ -1,7 +1,8 @@
-// self-scan: course scanner (sast/backend/scanner.js) on our own Part C code
-// same scanner the worker runs on PRs. prints every finding, exit 1 on any HIGH
-//   npm run self-scan   (in services/web)
-//   node scripts/self-scan.js --out self-scan.json
+// self scan runs the course scanner on our own Part C code
+// same scanner the worker runs on PRs
+// prints every finding and exits 1 on any HIGH
+// run it with the self scan npm script in the web folder
+// the out flag also saves the result as a json file
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';

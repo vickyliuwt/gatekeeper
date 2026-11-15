@@ -1,4 +1,5 @@
-// shared test helpers (this file has no tests)
+// shared test helpers
+// this file has no tests
 export function idSequence() {
   let n = 0;
   return () => {

@@ -1,5 +1,6 @@
-// memory versions of DynamoDB, S3 and SQS
-// the local server and the tests use them, so no AWS account needed
+// memory versions of DynamoDB and S3 and SQS
+// the local server and the tests use them
+// so no AWS account is needed
 function conditionFailed() {
   const error = new Error('Job already exists');
   error.name = 'ConditionalCheckFailedException';
@@ -17,7 +18,8 @@ export function createMemoryStore() {
     async get(jobId) {
       return items.has(jobId) ? structuredClone(items.get(jobId)) : null;
     },
-    // like Query on the byRepoTime index: only this repo, newest first
+    // like a query on the byRepoTime index
+    // only this repo and newest first
     async listRecent(repo, limit) {
       return [...items.values()]
         .filter((job) => job.repo === repo)
@@ -25,7 +27,8 @@ export function createMemoryStore() {
         .slice(0, limit)
         .map((job) => structuredClone(job));
     },
-    // only the local worker + test seeds use these 2. in AWS the worker writes
+    // only the local worker and test seeds use these 2
+    // in AWS the real worker writes
     async put(job) {
       items.set(job.jobId, structuredClone(job));
     },

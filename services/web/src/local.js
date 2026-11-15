@@ -1,12 +1,15 @@
-// local server for my laptop, no AWS needed
-// real page + real submit/results code. DynamoDB, S3, SQS + worker are in memory
-//   cd services/web
-//   npm run dev   then open http://127.0.0.1:9300 (access code demo-1234)
-// test words to put in the pasted code:
-//   SIMULATE_RETRY       try 1 fails, try 2 passes (the page shows "try 2 of 5")
-//   SIMULATE_SLOW        stays RUNNING 3 min, so the page stops polling at 2 min
-//   SIMULATE_INCOMPLETE  ends INCOMPLETE with no report
-//   SIMULATE_503         POST /scans answers 503 queue_unavailable
+// local server for my laptop with no AWS needed
+// real page and real submit and results code
+// DynamoDB and S3 and SQS and the worker are in memory
+// how to run it from the web folder
+// npm run dev then open port 9300 on localhost
+// the local access code is set in this file
+// test words you can put in the pasted code
+// each one is SIMULATE and a name joined by an underscore
+// simulate retry means try 1 fails and try 2 passes
+// simulate slow stays RUNNING 3 min so the page stops polling at 2 min
+// simulate incomplete ends INCOMPLETE with no report
+// simulate 503 makes POST scans answer 503
 import express from 'express';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -19,15 +22,15 @@ import { loadPage } from './page.js';
 import { createResults, resultsRoutes } from './results.js';
 import { createSubmit } from './submit.js';
 // true when node started this file
-// windows may give the same path in other letter case,
-// so compare real paths (ignore case), then file names
+// windows may give the same path in other letter case
+// so compare real paths and ignore case then file names
 function isMainModule(metaUrl) {
   if (!process.argv[1]) return false;
   const same = (a, b) => (process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b);
   const self = fileURLToPath(metaUrl);
   try {
     if (same(realpathSync(self), realpathSync(process.argv[1]))) return true;
-  } catch { /* fall through to the file-name check */ }
+  } catch { /* fall through to the file name check */ }
   return same(basename(self), basename(process.argv[1]));
 }
 
@@ -37,7 +40,8 @@ const SCANNER_PATH = join(REPO_ROOT, 'sast', 'backend', 'scanner.js');
 const FIXTURES_DIR = join(HERE, '..', 'test', 'fixtures');
 const RISKY_WORDS = /password|secret|api[_-]?key|token/i;
 
-// use the real course scanner if the repo has it, so local reports look real
+// use the real course scanner if the repo has it
+// so local reports look real
 async function loadScanner() {
   if (!existsSync(SCANNER_PATH)) return null;
   try {
@@ -78,7 +82,8 @@ function readFixture(name) {
   return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null;
 }
 
-// 3 done PR scans (2 FAIL, 1 PASS) so the recent list is not empty
+// 3 done PR scans with 2 FAIL and 1 PASS
+// so the recent list is not empty
 async function seedPrScans({ store, blobs, allowedRepo }) {
   const base = readFixture('report.pr.example.json') ?? { findings: [], scannedFiles: [], skippedFiles: [] };
   for (let i = 0; i < 3; i += 1) {
@@ -110,7 +115,8 @@ async function seedPrScans({ store, blobs, allowedRepo }) {
   }
 }
 
-// fake worker in memory (plays Part B): QUEUED -> RUNNING -> DONE
+// fake worker in memory that plays Part B
+// QUEUED then RUNNING then DONE
 function startLocalWorker({ store, blobs, queue, scanCode, speed, log }) {
   let stopped = false;
   const wait = (ms) => new Promise((resolve) => {
@@ -178,7 +184,8 @@ function startLocalWorker({ store, blobs, queue, scanCode, speed, log }) {
   };
 }
 
-// like the API Gateway limit on POST /scans: burst 5, then 1 per second
+// like the API Gateway limit on POST scans
+// burst 5 then 1 per second
 function createRateLimiter({ burst, perSecond }) {
   let tokens = burst;
   let last = Date.now();
@@ -246,7 +253,8 @@ export async function createLocalApp({
     }
   };
 
-  // same per-route limits as API Gateway. off in unit tests, on for npm run dev
+  // same route limits as API Gateway
+  // off in unit tests and on for npm run dev
   const limit = (burst, perSecond) => (routeLimits ? createRateLimiter({ burst, perSecond }) : (req, res, next) => next());
   app.get('/', limit(10, 5), run('GET /', routes['GET /']));
   app.post('/scans', createRateLimiter({ burst: 5, perSecond: 1 }), express.text({ type: () => true, limit: '1mb' }), run('POST /scans', submit));

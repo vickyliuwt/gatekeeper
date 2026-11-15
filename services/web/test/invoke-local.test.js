@@ -1,5 +1,6 @@
-// tests invoke-local.js without Docker: 2 fake emulators call the real
-// handlers on memory stand-ins
+// tests the invoke local script without Docker
+// 2 fake emulators call the real
+// handlers on memory stand ins
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
