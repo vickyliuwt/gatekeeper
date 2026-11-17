@@ -180,3 +180,4 @@ Desktop.ini
 
 # Archives
 *.zipworker/test/fixtures/hostile.js
+worker/test/fixtures/hostile.js
