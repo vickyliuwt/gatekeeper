@@ -3,6 +3,7 @@ import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { scanCode } from '../../sast/backend/scanner.js';
+import { fetchPrFiles } from './pr-source.js';
 
 const REGION = process.env.AWS_REGION || 'us-east-1';
 const JOBS_TABLE = process.env.JOBS_TABLE;
@@ -97,15 +98,38 @@ async function processJob({ jobId, traceId }) {
   log('claimed', { jobId, traceId, owner });
 
   const { Item: job } = await ddb.send(new GetCommand({ TableName: JOBS_TABLE, Key: { jobId } }));
-  if (!job?.codeKey) throw new Error(`job ${jobId} has no codeKey`);
+  if (!job) throw new Error(`job ${jobId} was not found`);
 
-  const obj = await s3.send(new GetObjectCommand({ Bucket: REPORTS_BUCKET, Key: job.codeKey }));
-  const code = await readBody(obj.Body);
-  log('code_loaded', { jobId, traceId, bytes: code.length });
+  let files;
+  if (job.source === 'pr') {
+    files = await fetchPrFiles(job, { token: process.env.GITHUB_TOKEN });
+  } else if (job.source === 'paste' || (!job.source && job.codeKey)) {
+    if (!job.codeKey) throw new Error(`job ${jobId} has no codeKey`);
 
-  // scanMs is the scanner alone; elapsedMs also covers the DynamoDB and S3 calls.
+    const obj = await s3.send(new GetObjectCommand({
+      Bucket: REPORTS_BUCKET,
+      Key: job.codeKey,
+    }));
+    files = [{
+      filename: job.filename || 'pasted.js',
+      code: await readBody(obj.Body),
+    }];
+  } else {
+    throw new Error(`job ${jobId} has an unsupported source`);
+  }
+
+  const scannedFiles = files.length;
+  const sourceBytes = files.reduce(
+    (total, file) => total + Buffer.byteLength(file.code, 'utf8'),
+    0,
+  );
+  log('code_loaded', { jobId, traceId, scannedFiles, sourceBytes });
+
+  // scanMs measures scanning; elapsedMs also includes source retrieval.
   const scanStart = Date.now();
-  const findings = scanCode(code, job.filename || 'pasted.js').map(maskEvidence);
+  const findings = files.flatMap(file =>
+    scanCode(file.code, file.filename).map(maskEvidence)
+  );
   const scanMs = Date.now() - scanStart;
   const elapsedMs = Date.now() - startedAt;
 
@@ -119,12 +143,18 @@ async function processJob({ jobId, traceId }) {
     Bucket: REPORTS_BUCKET,
     Key: reportKey,
     ContentType: 'application/json',
-    Body: JSON.stringify({ jobId, traceId, verdict, counts, scanMs, elapsedMs, findings }, null, 2)
+    Body: JSON.stringify({
+      jobId, traceId, verdict, counts,
+      scannedFiles, sourceBytes, scanMs, elapsedMs, findings,
+    }, null, 2)
   }));
   log('report_written', { jobId, traceId, reportKey, findings: findings.length });
 
   await finishJob(jobId, owner, { verdict, counts, reportKey });
-  log('done', { jobId, traceId, verdict, ...counts, scanMs, elapsedMs });
+  log('done', {
+    jobId, traceId, verdict, ...counts,
+    scannedFiles, sourceBytes, scanMs, elapsedMs,
+  });
 }
 
 export const handler = async (event) => {
