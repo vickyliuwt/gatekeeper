@@ -8,7 +8,7 @@ const REGION = process.env.AWS_REGION || 'us-east-1';
 const JOBS_TABLE = process.env.JOBS_TABLE;
 const REPORTS_BUCKET = process.env.REPORTS_BUCKET;
 const LEASE_SECONDS = 90;
-const SCAN_BUDGET_MS = 60_000;
+const JOB_BUDGET_MS = 60_000;
 
 const s3 = new S3Client({ region: REGION });
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }));
@@ -83,11 +83,16 @@ async function processJob({ jobId, traceId }) {
   try {
     await claimJob(jobId, owner);
   } catch (err) {
-    if (err.name === 'ConditionalCheckFailedException') {
-      log('claim_skipped', { jobId, traceId, reason: 'another worker holds the lease' });
-      return;
-    }
-    throw err;
+    if (err.name !== 'ConditionalCheckFailedException') throw err;
+
+    // The claim can fail for three different reasons. Say which one it was.
+    const { Item } = await ddb.send(new GetCommand({ TableName: JOBS_TABLE, Key: { jobId } }));
+    const reason = !Item ? 'job not found'
+      : Item.phase === 'DONE' ? 'job already complete'
+      : 'another worker holds the lease';
+
+    log('claim_skipped', { jobId, traceId, reason, phase: Item?.phase ?? null });
+    return;
   }
   log('claimed', { jobId, traceId, owner });
 
@@ -98,10 +103,13 @@ async function processJob({ jobId, traceId }) {
   const code = await readBody(obj.Body);
   log('code_loaded', { jobId, traceId, bytes: code.length });
 
+  // scanMs is the scanner alone; elapsedMs also covers the DynamoDB and S3 calls.
+  const scanStart = Date.now();
   const findings = scanCode(code, job.filename || 'pasted.js').map(maskEvidence);
-  const scanMs = Date.now() - startedAt;
+  const scanMs = Date.now() - scanStart;
+  const elapsedMs = Date.now() - startedAt;
 
-  if (scanMs > SCAN_BUDGET_MS) throw new Error(`scan exceeded budget: ${scanMs} ms`);
+  if (elapsedMs > JOB_BUDGET_MS) throw new Error(`job exceeded budget: ${elapsedMs} ms`);
 
   const { counts, verdict } = summarize(findings);
   const reportKey = `reports/${jobId}.json`;
@@ -111,12 +119,12 @@ async function processJob({ jobId, traceId }) {
     Bucket: REPORTS_BUCKET,
     Key: reportKey,
     ContentType: 'application/json',
-    Body: JSON.stringify({ jobId, traceId, verdict, counts, scanMs, findings }, null, 2)
+    Body: JSON.stringify({ jobId, traceId, verdict, counts, scanMs, elapsedMs, findings }, null, 2)
   }));
   log('report_written', { jobId, traceId, reportKey, findings: findings.length });
 
   await finishJob(jobId, owner, { verdict, counts, reportKey });
-  log('done', { jobId, traceId, verdict, ...counts, scanMs });
+  log('done', { jobId, traceId, verdict, ...counts, scanMs, elapsedMs });
 }
 
 export const handler = async (event) => {
