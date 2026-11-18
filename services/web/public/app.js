@@ -49,6 +49,7 @@
     openFile: byId('open-file'),
     fileInput: byId('file-input'),
     clearCode: byId('clear-code'),
+    undoCode: byId('undo-code'),
     actChip: byId('act-chip'),
     empty: byId('act-empty'),
     lastScan: byId('last-scan'),
@@ -90,6 +91,7 @@
     findings: byId('findings'),
     findingsEmpty: byId('findings-empty'),
     findingsCap: byId('findings-cap'),
+    reloadReport: byId('reload-report'),
     skipped: byId('skipped'),
     skippedList: byId('skipped-list'),
     shareLink: byId('share-link'),
@@ -114,6 +116,16 @@
   let gutterCount = 0;
   let reportCounts = null;
   let lastVerdict = null;
+  // one number per scan run so an old answer can not draw over a new scan
+  let runId = 0;
+  let sending = false;
+  // when this page last sent a scan
+  let lastSentAt = 0;
+  let undoSnapshot = null;
+  let copyLinkTimer = 0;
+  let lastStatus = null;
+  let lastReportCode = null;
+  let reloading = false;
 
   // small helpers
   function el(tag, className, text) {
@@ -339,24 +351,71 @@
     return `GateKeeper answered with status ${code}. Scan again in a moment.`;
   }
 
+  // keep the old code for one undo
+  // Clear and Open file and the examples replace the box
+  // setting the box value also wipes ctrl z so we keep our own copy
+  // the copy stays in this browser and is never sent
+  function keepForUndo(next, label) {
+    if (!GK.undoNeeded(ui.code.value, next)) {
+      dropUndo();
+      return false;
+    }
+    undoSnapshot = { code: ui.code.value, filename: ui.filename.value };
+    ui.undoCode.setAttribute('aria-label', `Undo ${label}`);
+    ui.undoCode.hidden = false;
+    return true;
+  }
+
+  function dropUndo() {
+    undoSnapshot = null;
+    // the button goes away so focus moves to the box first
+    if (doc.activeElement === ui.undoCode) ui.code.focus({ preventScroll: true });
+    ui.undoCode.hidden = true;
+  }
+
+  // names for the spoken note after an example loads
+  const SAMPLE_NAMES = Object.freeze({
+    'sample-risky': 'risky example',
+    'sample-clean': 'clean example',
+    'sample-retry': 'retry test',
+    'sample-incomplete': 'incomplete test',
+    'sample-slow': 'slow test',
+  });
+
+  function undoReplace() {
+    if (!undoSnapshot) return;
+    ui.code.value = undoSnapshot.code;
+    ui.filename.value = undoSnapshot.filename;
+    dropUndo();
+    updateEditor();
+    clearFormError();
+    ui.code.focus();
+    announce('Your code is back in the box.');
+  }
+
   function loadSample(templateId, filename) {
-    ui.code.value = `${byId(templateId).content.textContent.trim()}\n`;
+    const next = `${byId(templateId).content.textContent.trim()}\n`;
+    const name = SAMPLE_NAMES[templateId] || 'example';
+    const kept = keepForUndo(next, 'the example');
+    ui.code.value = next;
     ui.filename.value = filename;
     updateEditor();
     clearFormError();
     ui.code.focus();
+    announce(kept ? `Loaded the ${name}. Undo puts your code back.` : `Loaded the ${name}.`);
   }
 
   // clear button empties the box only
   // nothing goes to AWS
   function clearCode() {
     if (!ui.code.value) return;
+    const kept = keepForUndo('', 'Clear');
     ui.code.value = '';
     ui.filename.value = 'snippet.js';
     updateEditor();
     clearFormError();
     ui.code.focus();
-    announce('Code box cleared.');
+    announce(kept ? 'Code box cleared. Undo puts it back.' : 'Code box cleared.');
   }
 
   // open a js file from my disk into the box
@@ -377,6 +436,7 @@
         showFormError(GK.fileProblem(file.name, GK.codeBytes(text)), null);
         return;
       }
+      const kept = keepForUndo(text, 'Open .js file');
       ui.code.value = text;
       ui.filename.value = GK.safeFilename(file.name);
       updateEditor();
@@ -385,15 +445,31 @@
       ui.code.setSelectionRange(0, 0);
       ui.code.scrollTop = 0;
       ui.code.focus({ preventScroll: true });
-      announce(`Opened ${ui.filename.value}. Nothing is sent until you scan.`);
+      announce(`Opened ${ui.filename.value}. Nothing is sent until you scan.${kept ? ' Undo puts your old code back.' : ''}`);
     } catch (ignored) {
       showFormError('This file could not be read. Try another .js file.', null);
     }
   }
 
+  // the button stays in the tab order while sending
+  // aria disabled says busy and a second press does nothing
+  function setSending(on) {
+    sending = on;
+    ui.scan.setAttribute('aria-disabled', String(on));
+    ui.scanLabel.textContent = on ? 'Sending code' : 'Run security scan';
+  }
+
   async function onSubmit(event) {
     event.preventDefault();
-    if (ui.scan.disabled) return undefined;
+    if (sending) return undefined;
+    // a press within 2 s of the last scan does nothing so no second lambda starts
+    const wait = GK.scanWaitMs(lastSentAt, Date.now());
+    if (wait > 0) {
+      const secs = Math.ceil(wait / 1000);
+      addLog(`Scan pressed again too soon · wait ${secs} s`, 'hold');
+      announce(`One scan at a time. Wait ${secs} seconds.`);
+      return undefined;
+    }
     clearFormError();
     const code = ui.code.value;
     const filename = ui.filename.value.trim() || 'snippet.js';
@@ -405,6 +481,8 @@
     }
     if (!accessCode) return showFormError('Enter the access code from the GateKeeper team.', ui.access);
     hideAccess();
+    // this code is what we scan now so the old copy is not needed
+    dropUndo();
 
     stopTracking();
     resetLog();
@@ -414,9 +492,10 @@
     ui.statusText.textContent = 'Sending your code to API Gateway.';
     view = { mode: 'sending' };
     render();
-    ui.scan.disabled = true;
-    ui.scanLabel.textContent = 'Sending code';
+    runId += 1;
+    setSending(true);
     const sentAt = Date.now();
+    lastSentAt = sentAt;
     try {
       const response = await win.fetch('/scans', {
         method: 'POST',
@@ -448,8 +527,7 @@
       ui.statusText.textContent = 'Nothing was queued.';
       return showFormError('GateKeeper could not be reached. Check your connection, then scan again.', null);
     } finally {
-      ui.scan.disabled = false;
-      ui.scanLabel.textContent = 'Run security scan';
+      setSending(false);
     }
   }
 
@@ -527,6 +605,7 @@
 
   function startTracking(jobId, { sentAt = null, traceId = null, fromLink = false, keepLog = false } = {}) {
     stopTracking();
+    runId += 1;
     lastJobId = jobId;
     if (fromLink) {
       if (!keepLog) resetLog();
@@ -559,13 +638,16 @@
       took = ms;
       if (code === 404) {
         addLog('GET /scans/{id} → 404 · no such job', 'hold', ms);
+        // Stop watching goes away now so check first if it had focus
+        const hadFocus = doc.activeElement === ui.stopWatch;
         stopTracking();
         view = { mode: 'lost' };
         render();
         showProblem('This link has no scan. Pasted code is kept for one day, so the scan may have expired.');
+        if (hadFocus) ui.problemText.focus();
         return;
       }
-      if (code === 200 && body) {
+      if (code === 200 && GK.isStatusBody(body)) {
         status = body;
       } else {
         // keep the last bad answer for the 2 minute note
@@ -593,13 +675,22 @@
         current.lastKey = key;
         addLog(`GET /scans/{id} → ${GK.statusSummary(status)}`, toneOf(status), took);
       }
-      ui.statusText.textContent = GK.statusLine(status);
+      // after 20 s on try 0 say that no worker took the job yet
+      // the screen reader hears it one time only
+      const hint = GK.queueHint(status, elapsed);
+      ui.statusText.textContent = hint || GK.statusLine(status);
+      if (hint && !current.hintSaid) {
+        current.hintSaid = true;
+        announce(hint);
+      }
       const attempt = Number(status.attempt) || 0;
-      ui.tryText.textContent = attempt > 0 ? `${attempt} of ${Number(status.maxAttempts) || GK.MAX_ATTEMPTS}` : 'not started';
+      ui.tryText.textContent = attempt > 0 ? GK.tryOf(attempt, GK.maxTries(status)) : 'not started';
+      // the 2 minute note needs the last phase and try
+      current.lastStatus = { phase: status.phase, attempt, maxAttempts: GK.maxTries(status) };
       // Stop watching goes away at DONE
       // remember if it had focus
       const stopHadFocus = doc.activeElement === ui.stopWatch;
-      view = { mode: 'tracking', phase: status.phase, attempt, verdict: status.verdict, reportReady: false, hasReport: Boolean(status.hasReport) };
+      view = { mode: 'tracking', phase: status.phase, attempt, maxAttempts: GK.maxTries(status), verdict: status.verdict, reportReady: false, hasReport: Boolean(status.hasReport) };
       render();
       stampSteps();
       if (status.phase === 'DONE') {
@@ -612,7 +703,7 @@
     if (!GK.shouldKeepPolling(elapsed, status ? status.phase : 'QUEUED')) {
       pauseWatching(false);
       // say what really came back like a status or an error code or nothing
-      const note = GK.stopNote(Boolean(current.lastKey), current.lastCode);
+      const note = GK.stopNote(Boolean(current.lastKey), current.lastCode, current.lastStatus);
       ui.statusText.textContent = note.text;
       announce(note.say);
       return;
@@ -620,23 +711,36 @@
     current.timer = win.setTimeout(() => poll(current), GK.pollDelayMs(elapsed));
   }
 
-  async function showResult(status, current) {
-    let report = null;
-    if (status.hasReport) {
-      try {
-        const { code, body, ms } = await getJson(`/scans/${encodeURIComponent(status.jobId)}/report`);
-        if (code === 200 && body) {
-          report = body;
-          const n = Array.isArray(body.findings) ? body.findings.length : 0;
-          addLog(`GET /scans/{id}/report → 200 · ${n} ${n === 1 ? 'finding' : 'findings'}, masked`, null, ms);
-        } else {
-          addLog(`GET /scans/{id}/report → ${code}`, 'hold', ms);
-        }
-      } catch (ignored) {
-        addLog('GET /scans/{id}/report → no answer', 'hold');
+  // one GET for the masked report
+  // code 0 means no answer
+  // run is the scan run that asked so an old answer never logs into a new scan
+  async function fetchReport(status, run) {
+    try {
+      const { code, body, ms } = await getJson(`/scans/${encodeURIComponent(status.jobId)}/report`);
+      if (run !== runId) return { report: null, code: null };
+      if (code === 200 && body) {
+        const n = Array.isArray(body.findings) ? body.findings.length : 0;
+        addLog(`GET /scans/{id}/report → 200 · ${n} ${n === 1 ? 'finding' : 'findings'}, masked`, null, ms);
+        return { report: body, code };
       }
+      addLog(`GET /scans/{id}/report → ${code}`, 'hold', ms);
+      return { report: null, code };
+    } catch (ignored) {
+      if (run !== runId) return { report: null, code: null };
+      addLog('GET /scans/{id}/report → no answer', 'hold');
+      return { report: null, code: 0 };
     }
-    view = { ...view, reportReady: true, hasReport: Boolean(report) };
+  }
+
+  async function showResult(status, current) {
+    const myRun = runId;
+    const got = status.hasReport ? await fetchReport(status, myRun) : { report: null, code: null };
+    // a new scan started while the report was loading so leave the page to it
+    if (myRun !== runId) return;
+    const report = got.report;
+    lastReportCode = got.code;
+    // the job has a report but this page could not load it
+    view = { ...view, reportReady: true, hasReport: Boolean(report), reportFailed: Boolean(status.hasReport) && !report };
     tracking = current;
     render();
     stampSteps();
@@ -644,9 +748,9 @@
     renderTime(status);
     renderReport(status, report);
     ui.viewReport.hidden = false;
-    if (report) ui.statusText.textContent = 'Scan finished. The report is ready below.';
-    else if (status.verdict === 'INCOMPLETE') ui.statusText.textContent = 'Scan finished as INCOMPLETE. No report was saved.';
-    else ui.statusText.textContent = 'Scan finished. The full report could not be loaded.';
+    // saved on the server but the GET failed so offer one more try
+    ui.reloadReport.hidden = !(status.hasReport && !report && got.code !== 404);
+    ui.statusText.textContent = GK.finishLine(status, Boolean(report), got.code);
     loadRecent();
   }
 
@@ -666,9 +770,12 @@
     ui.statFindingsNote.textContent = 'Shown when a scan ends';
     ui.statTime.textContent = '—';
     ui.statTimeNote.textContent = 'From the job record';
+    ui.reloadReport.hidden = true;
     findings = [];
     reportCounts = null;
     lastVerdict = null;
+    lastStatus = null;
+    lastReportCode = null;
   }
 
   function renderReport(status, report) {
@@ -684,13 +791,14 @@
     win.requestAnimationFrame(() => ui.verdict.classList.add('land'));
 
     hasReport = Boolean(report);
+    lastStatus = status;
     lastVerdict = status.verdict || null;
     // full or partial or none
     // partial means INCOMPLETE with some files
     // none means nothing to count
     const countState = GK.countsState(status, hasReport);
-    const scanned = countState !== 'none';
-    const counts = status.counts || (hasReport ? GK.countBySeverity(report.findings) : { high: 0, medium: 0, low: 0 });
+    const scanned = countState === 'full' || countState === 'partial';
+    const counts = GK.pickCounts(status, report);
     reportCounts = scanned ? counts : null;
     renderCounts(counts, countState);
     renderSubject(status, report);
@@ -703,14 +811,17 @@
     renderFindings();
 
     const skipped = hasReport && Array.isArray(report.skippedFiles) ? report.skippedFiles : [];
-    ui.skippedList.replaceChildren(...skipped.map((file) => el('li', null, `${file.path}: ${String(file.reason || '').replace(/_/g, ' ')}`)));
-    ui.skipped.hidden = skipped.length === 0;
+    // a skipped file can be a plain name or an object
+    const skippedLines = skipped.map((file) => GK.skippedText(file)).filter(Boolean);
+    ui.skippedList.replaceChildren(...skippedLines.map((text) => el('li', null, text)));
+    ui.skipped.hidden = skippedLines.length === 0;
 
     ui.scanFacts.replaceChildren(...GK.scanFacts(status).flatMap(([label, value]) => [el('dt', null, label), el('dd', null, value)]));
     ui.scanLog.open = GK.scanLogOpen(status);
     scrollReportLog();
 
-    ui.shareLink.value = `${win.location.origin}${win.location.pathname}?job=${status.jobId}`;
+    ui.shareLink.value = `${win.location.origin}${win.location.pathname}?job=${encodeURIComponent(status.jobId)}`;
+    win.clearTimeout(copyLinkTimer);
     setButtonText(ui.copyLink, 'Copy link');
 
     const total = (Number(counts.high) || 0) + (Number(counts.medium) || 0) + (Number(counts.low) || 0);
@@ -721,13 +832,15 @@
     } else {
       ui.statFindings.textContent = '—';
       ui.statFindings.dataset.tone = 'hold';
-      ui.statFindingsNote.textContent = 'Not scanned, so no counts';
+      ui.statFindingsNote.textContent = countState === 'unloaded' ? 'Report not loaded, so no counts here' : 'Not scanned, so no counts';
     }
-    announce(scanned ? `Scan finished: ${info.label}, ${GK.countsLine(counts)}.` : `Scan finished: ${info.label}, not scanned.`);
+    if (scanned) announce(`Scan finished: ${info.label}, ${GK.countsLine(counts)}.`);
+    else if (countState === 'unloaded') announce(`Scan finished: ${info.label}, the report did not load.`);
+    else announce(`Scan finished: ${info.label}, not scanned.`);
   }
 
   function renderCounts(counts, countState) {
-    const scanned = countState !== 'none';
+    const scanned = countState === 'full' || countState === 'partial';
     const values = { high: Number(counts.high) || 0, medium: Number(counts.medium) || 0, low: Number(counts.low) || 0 };
     // not scanned shows a dash and never 0
     // 0 high could look like a pass
@@ -735,7 +848,8 @@
     ui.countMedium.textContent = scanned ? values.medium : '—';
     ui.countLow.textContent = scanned ? values.low : '—';
     ui.sevList.dataset.state = countState;
-    for (const [node, text] of SEV_NOTES) node.textContent = scanned ? text : 'not checked';
+    const dashWord = countState === 'unloaded' ? 'not loaded' : 'not checked';
+    for (const [node, text] of SEV_NOTES) node.textContent = scanned ? text : dashWord;
     for (const row of doc.querySelectorAll('[data-sev]')) row.classList.toggle('has', scanned && values[row.dataset.sev] > 0);
 
     for (const old of ui.donut.querySelectorAll('.seg')) old.remove();
@@ -751,7 +865,7 @@
       ui.donut.append(circle);
     }
     ui.donutTotal.textContent = scanned ? total : '—';
-    if (!scanned) ui.donutLabel.textContent = 'not scanned';
+    if (!scanned) ui.donutLabel.textContent = countState === 'unloaded' ? 'not loaded' : 'not scanned';
     else if (countState === 'partial') ui.donutLabel.textContent = 'in scanned files';
     else ui.donutLabel.textContent = total === 1 ? 'finding' : 'findings';
   }
@@ -778,7 +892,9 @@
       rows.push(subjectRow('File', el('code', null, status.filename || 'snippet.js')));
     }
     const when = report && report.scannedAt ? report.scannedAt : status.updatedAt;
-    if (when) rows.push(subjectRow('Scanned', GK.timeAgo(when, Date.now())));
+    // an odd date gives no words so the row stays out
+    const ago = when ? GK.timeAgo(when, Date.now()) : '';
+    if (ago) rows.push(subjectRow('Scanned', ago));
     if (report && typeof report.scannerVersion === 'string') rows.push(subjectRow('Scanner', report.scannerVersion));
     const id = el('code', null, GK.shortJobId(status.jobId));
     id.title = status.jobId;
@@ -805,8 +921,7 @@
 
     const shown = filter === 'all' ? findings : findings.filter((f) => f.severity === filter);
     ui.findings.replaceChildren(...shown.map(findingItem));
-    if (!hasReport && lastVerdict === 'INCOMPLETE') ui.findingsEmpty.textContent = 'No report was saved for this scan. Scan the code again to get one.';
-    else if (!hasReport) ui.findingsEmpty.textContent = 'The full report could not be loaded. It may have expired (pasted code is kept 1 day).';
+    if (!hasReport) ui.findingsEmpty.textContent = GK.reportMissingText(lastStatus || { verdict: lastVerdict }, lastReportCode);
     else if (findings.length === 0) ui.findingsEmpty.textContent = GK.noFindingsText(lastVerdict);
     else if (shown.length === 0) ui.findingsEmpty.textContent = `No ${filterLabel(filter).toLowerCase()} findings in this scan.`;
     ui.findingsEmpty.hidden = shown.length > 0;
@@ -855,20 +970,19 @@
     return td;
   }
 
+  // the chip follows the real phase like the Scan Activity card
   function resultChip(item) {
-    if (item.phase === 'DONE' && item.verdict) {
-      const info = GK.verdictInfo(item.verdict);
-      const chip = el('span', 'chip', info.label);
-      chip.dataset.tone = info.tone;
-      return chip;
-    }
-    const chip = el('span', 'chip', item.phase === 'FAILED' ? 'RETRYING' : 'SCANNING');
-    chip.dataset.tone = item.phase === 'FAILED' ? 'hold' : 'run';
+    const info = GK.listChip(item);
+    const chip = el('span', 'chip', info.label);
+    chip.dataset.tone = info.tone;
     return chip;
   }
 
-  function countPills(counts) {
-    if (!counts) return el('span', 'mono', 'not yet');
+  // no counts yet or skipped files show a word and never a 0
+  function countPills(item) {
+    const word = GK.listCountsWord(item);
+    if (word) return el('span', 'mono', word);
+    const counts = item.counts;
     const wrap = el('span', 'counts');
     for (const [key, letter] of [['high', 'h'], ['medium', 'm'], ['low', 'l']]) {
       const n = Number(counts[key]) || 0;
@@ -909,7 +1023,7 @@
         cell('Pull request', prCell(item)),
         cell('Commit', GK.shortSha(item.headSha), 'mono'),
         cell('Result', resultChip(item)),
-        cell('Findings', countPills(item.counts)),
+        cell('Findings', countPills(item)),
         cell('When', GK.timeAgo(item.createdAt, now)),
         cell('Report', openLink(item.jobId)),
       );
@@ -927,7 +1041,7 @@
       ui.statPrNote.textContent = broken ? 'List not available' : 'No PR scans yet';
       return;
     }
-    const chip = item.phase === 'DONE' && item.verdict ? GK.verdictInfo(item.verdict) : { label: 'scanning', tone: 'run' };
+    const chip = GK.listChip(item);
     ui.statPr.textContent = `#${item.prNumber} ${chip.label}`;
     ui.statPr.dataset.tone = chip.tone;
     ui.statPrNote.textContent = `${GK.shortSha(item.headSha)} · ${GK.timeAgo(item.createdAt, Date.now())}`;
@@ -998,7 +1112,11 @@
   ui.ctaScan.addEventListener('click', () => {
     win.setTimeout(() => ui.code.focus({ preventScroll: true }), 420);
   });
-  ui.code.addEventListener('input', updateEditor);
+  ui.code.addEventListener('input', () => {
+    // typing makes the old copy stale so the undo goes away
+    dropUndo();
+    updateEditor();
+  });
   ui.code.addEventListener('scroll', () => {
     ui.gutter.scrollTop = ui.code.scrollTop;
   });
@@ -1016,6 +1134,7 @@
   ui.loadSlow.addEventListener('click', () => loadSample('sample-slow', 'demo-slow.js'));
   ui.openFile.addEventListener('click', () => ui.fileInput.click());
   ui.clearCode.addEventListener('click', clearCode);
+  ui.undoCode.addEventListener('click', undoReplace);
   ui.fileInput.addEventListener('change', openLocalFile);
   ui.checkAgain.addEventListener('click', () => {
     if (!lastJobId) return;
@@ -1043,6 +1162,9 @@
     copyText(ui.shareLink.value, (ok) => {
       if (!ok) ui.shareLink.select();
       setButtonText(ui.copyLink, ok ? 'Copied' : 'Press Ctrl+C');
+      // go back to Copy link after a short time
+      win.clearTimeout(copyLinkTimer);
+      copyLinkTimer = win.setTimeout(() => setButtonText(ui.copyLink, 'Copy link'), 1600);
     });
   });
   ui.filters.addEventListener('click', (event) => {
@@ -1052,6 +1174,38 @@
     renderFindings();
   });
   ui.refreshRecent.addEventListener('click', loadRecent);
+  // load the report again after a failed GET
+  // the scan is done so only the report call runs
+  ui.reloadReport.addEventListener('click', async () => {
+    if (!lastStatus || reloading) return;
+    const status = lastStatus;
+    const myRun = runId;
+    reloading = true;
+    ui.reloadReport.setAttribute('aria-disabled', 'true');
+    const got = await fetchReport(status, myRun);
+    reloading = false;
+    ui.reloadReport.setAttribute('aria-disabled', 'false');
+    if (myRun !== runId) return;
+    lastReportCode = got.code;
+    if (!got.report) {
+      const words = GK.reportMissingText(status, got.code);
+      ui.findingsEmpty.textContent = words;
+      ui.statusText.textContent = GK.finishLine(status, false, got.code);
+      // expired means a new try can not help so hide the button
+      if (got.code === 404) {
+        ui.reloadReport.hidden = true;
+        ui.findingsTitle.focus();
+      }
+      announce(words);
+      return;
+    }
+    view = { ...view, reportReady: true, hasReport: true, reportFailed: false };
+    render();
+    renderReport(status, got.report);
+    ui.reloadReport.hidden = true;
+    ui.statusText.textContent = GK.finishLine(status, true);
+    ui.findingsTitle.focus();
+  });
 
   updateEditor();
   renderEnv();
@@ -1060,9 +1214,12 @@
   watchSections();
 
   const fromLink = new URLSearchParams(win.location.search).get('job');
+  // a broken link says so instead of an empty page
+  const linkWords = GK.linkProblem(fromLink);
   if (GK.isJobId(fromLink)) {
     startTracking(fromLink, { fromLink: true });
   } else {
+    if (linkWords) showProblem(linkWords);
     const previous = readLastJob();
     if (previous) {
       ui.lastScan.hidden = false;

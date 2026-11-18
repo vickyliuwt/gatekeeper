@@ -29,6 +29,14 @@ variable "web_demo_code_param" {
   default     = "/gatekeeper/demo-code"
 }
 
+# lab safety switch for the 2 web lambdas
+# the lab limits tool can turn it on in a tfvars file that git ignores
+variable "cap_web_lambdas" {
+  description = "true gives gk-submit and gk-results a hard cap. Only when lab-limits.mjs says the account allows it."
+  type        = bool
+  default     = false
+}
+
 # account ID comes from AWS at plan time and is never typed in the code
 data "aws_caller_identity" "web" {}
 
@@ -101,6 +109,9 @@ module "web" {
   api_access_log_group = module.core.api_access_log_group_name
 
   depends_on = [aws_iam_role_policy.web]
+
+  # lab safety switch from the lab limits tool
+  cap_lambdas = var.cap_web_lambdas
 }
 
 # my route limits

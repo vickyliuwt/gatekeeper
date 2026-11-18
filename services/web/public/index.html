@@ -43,6 +43,7 @@
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></symbol>
   <symbol id="i-poll" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3M19.5 12a7.5 7.5 0 0 1-12.8 5.3"/><path d="M17.5 3.8v3.1h-3.1M6.5 20.2v-3.1h3.1"/></symbol>
   <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6.5v11M15 6.5v11"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></symbol>
 </svg>
 
@@ -124,7 +125,7 @@
     </section>
 
     <div class="work">
-      <section class="card scanner reveal d3" id="scan" aria-labelledby="scan-title">
+      <section class="card scanner" id="scan" aria-labelledby="scan-title">
         <div class="card-head">
           <div class="head-main">
             <span class="tile" aria-hidden="true"><svg class="ico"><use href="#i-code"/></svg></span>
@@ -145,12 +146,13 @@
               <button type="button" class="bar-btn" id="open-file" title="Reads the file in this browser. Nothing is sent until you scan."><svg class="ico" aria-hidden="true"><use href="#i-code"/></svg>Open .js file</button>
               <input type="file" id="file-input" class="visually-hidden" accept=".js,.mjs,.cjs" tabindex="-1" aria-hidden="true">
               <button type="button" class="bar-btn" id="clear-code" disabled title="Empties the code box. Nothing is sent."><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg>Clear</button>
+              <button type="button" class="bar-btn" id="undo-code" hidden aria-label="Undo" title="Puts back the code you just replaced. Nothing is sent."><svg class="ico" aria-hidden="true"><use href="#i-undo"/></svg>Undo</button>
               <span class="editor-meta" id="size-hint">0 lines · 0.0 KB of 100 KB</span>
             </div>
             <div class="editor-body">
               <pre class="gutter" id="gutter" aria-hidden="true">1</pre>
               <label class="visually-hidden" for="code">JavaScript to check</label>
-              <textarea id="code" name="code" rows="9" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="// paste JavaScript here, or load an example" aria-describedby="size-hint"></textarea>
+              <textarea id="code" name="code" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="// paste JavaScript here, or load an example" aria-describedby="size-hint"></textarea>
             </div>
           </div>
           <div class="submit-row">
@@ -173,7 +175,7 @@
         </div>
       </section>
 
-      <section class="card activity reveal d4" id="activity" aria-labelledby="act-title" data-busy="false">
+      <section class="card activity" id="activity" aria-labelledby="act-title" data-busy="false">
         <div class="busy" aria-hidden="true"></div>
         <div class="card-head">
           <div class="head-main">
@@ -220,7 +222,7 @@
         </div>
         <div class="problem" id="act-problem" hidden>
           <span class="tile tile-lg tile-hold" aria-hidden="true"><svg class="ico"><use href="#i-alert"/></svg></span>
-          <p id="problem-text"></p>
+          <p id="problem-text" tabindex="-1"></p>
         </div>
       </section>
     </div>
@@ -291,7 +293,7 @@
           <div class="subject" id="subject"></div>
         </div>
         <div class="findings-head">
-          <h3 id="findings-title">Findings</h3>
+          <h3 id="findings-title" tabindex="-1">Findings</h3>
           <div class="filters" id="filters" role="group" aria-label="Show findings by severity">
             <button type="button" data-filter="all" aria-pressed="true">All</button>
             <button type="button" data-filter="HIGH" aria-pressed="false">High</button>
@@ -301,6 +303,7 @@
         </div>
         <ol class="findings" id="findings"></ol>
         <p class="quiet" id="findings-empty" hidden></p>
+        <button type="button" class="btn btn-quiet btn-sm reload-report" id="reload-report" hidden><svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg>Load report again</button>
         <p class="quiet cap-note" id="findings-cap" hidden></p>
         <div class="skipped" id="skipped" hidden>
           <p class="skipped-title"><svg class="ico" aria-hidden="true"><use href="#i-alert"/></svg>Not scanned</p>

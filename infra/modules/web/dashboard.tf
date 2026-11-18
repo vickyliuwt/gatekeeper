@@ -19,7 +19,7 @@ resource "aws_cloudwatch_dashboard" "web" {
         width  = 24
         height = 2
         properties = {
-          markdown = "## GateKeeper Part C: Paste and Scan web\nA paste flood shows up as API 4xx (429 from the POST /scans limit) while gk-results keeps answering. Queue age grows only while no worker is running. The two tables come from logs: Lambda metrics are split only by function, so the API access log shows each route."
+          markdown = "## GateKeeper Part C: Paste and Scan web\nToo many scans at once show up as API 4xx (429 from the POST /scans limit) while gk-results keeps answering. Queue age grows only while no worker is running. The two tables come from logs: Lambda metrics are split only by function, so the API access log shows each route. The last graph is the whole account: Learner Lab switches an account off near 10 Lambdas at once, so every test sends one request at a time."
         }
       },
       {
@@ -125,6 +125,30 @@ resource "aws_cloudwatch_dashboard" "web" {
           region = var.region
           view   = "table"
           query  = "SOURCE '${aws_cloudwatch_log_group.submit.name}' | SOURCE '${aws_cloudwatch_log_group.results.name}' | filter level = \"error\" | stats count(*) as errors by svc, msg | sort errors desc | limit 20"
+        }
+      },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 20
+        width  = 24
+        height = 6
+        properties = {
+          title   = "Whole account: Lambdas running at once (Learner Lab line is about 10, stay at 5 or less)"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Maximum"
+          period  = 60
+          stacked = false
+          metrics = [
+            ["AWS/Lambda", "ConcurrentExecutions", { label = "running at once" }]
+          ]
+          annotations = {
+            horizontal = [
+              { label = "stop tests", value = 5 },
+              { label = "Learner Lab line", value = 10 }
+            ]
+          }
         }
       }
     ]

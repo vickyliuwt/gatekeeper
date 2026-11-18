@@ -70,7 +70,7 @@ test('the local server plays the whole paste flow', async (t) => {
     assert.equal((await response.json()).error, 'queue_unavailable');
   });
 
-  await t.test('a paste flood gets 429 from the route limit', async () => {
+  await t.test('too many posts close together get 429 from the route limit', async () => {
     const codes = await Promise.all(Array.from({ length: 8 }, () => post(local.base, 'const a = 1;').then((r) => r.status)));
     assert.ok(codes.includes(429), codes.join(','));
   });

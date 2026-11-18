@@ -11,14 +11,34 @@ const RECENT_LIMIT = 20;
 
 // the small object the page polls
 // verdict and counts stay null until DONE
+// the worker could say success or failure like GitHub does
+// the page only knows PASS FAIL INCOMPLETE so we map the words here
+// a word we do not know counts as INCOMPLETE because not scanned is not safe
+const VERDICT_WORDS = { pass: 'PASS', success: 'PASS', fail: 'FAIL', failure: 'FAIL', incomplete: 'INCOMPLETE', error: 'INCOMPLETE' };
+
+export function normVerdict(verdict) {
+  if (verdict === null || verdict === undefined || verdict === '') return null;
+  return VERDICT_WORDS[String(verdict).toLowerCase()] ?? 'INCOMPLETE';
+}
+
+// counts can come as HIGH or high so we read both
+export function normCounts(counts) {
+  if (!counts || typeof counts !== 'object' || Array.isArray(counts)) return null;
+  const read = (key) => {
+    const n = Number(counts[key] ?? counts[key.toUpperCase()]);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  };
+  return { high: read('high'), medium: read('medium'), low: read('low') };
+}
+
 export function toStatus(job) {
   const done = job.phase === 'DONE';
   const status = {
     jobId: job.jobId,
     source: job.source,
     phase: job.phase,
-    verdict: done ? job.verdict ?? null : null,
-    counts: done ? job.counts ?? null : null,
+    verdict: done ? normVerdict(job.verdict) : null,
+    counts: done ? normCounts(job.counts) : null,
     attempt: job.attempt ?? 0,
     maxAttempts: MAX_ATTEMPTS,
     hasReport: done && typeof job.reportKey === 'string',
@@ -42,8 +62,8 @@ export function toListItem(item) {
     prNumber: item.prNumber ?? null,
     headSha: item.headSha ?? null,
     phase: item.phase ?? null,
-    verdict: item.verdict ?? null,
-    counts: item.counts ?? null,
+    verdict: normVerdict(item.verdict),
+    counts: normCounts(item.counts),
     createdAt: item.createdAt ?? null,
   };
 }
@@ -117,7 +137,10 @@ export function createResults({ store, blobs, allowedRepo, page, log }) {
     }
 
     log('read', context);
-    return json(200, maskReport(report));
+    const masked = maskReport(report);
+    if ('verdict' in masked) masked.verdict = normVerdict(masked.verdict);
+    if ('counts' in masked) masked.counts = normCounts(masked.counts);
+    return json(200, masked);
   }
 
   return { showPage, listRecent, getStatus, getReport };

@@ -77,3 +77,12 @@ variable "api_access_log_group" {
   type        = string
   default     = "/gatekeeper/api/access"
 }
+
+# lab safety switch
+# true gives the submit lambda 1 and the results lambda 2 reserved
+# only turn it on when the lab limits tool says the account allows it
+variable "cap_lambdas" {
+  description = "true sets reserved concurrency gk-submit 1 and gk-results 2. Only when lab-limits.mjs says yes."
+  type        = bool
+  default     = false
+}

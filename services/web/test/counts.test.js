@@ -22,7 +22,8 @@ test('PASS and FAIL count in full when counts or a report exist', () => {
   assert.equal(GK.countsState({ verdict: 'PASS' }, true), 'full');
   // no counts and no report
   // nothing to show so dashes
-  assert.equal(GK.countsState({ verdict: 'FAIL' }, false), 'none');
+  // scanned but the report did not load is not the same as not checked
+  assert.equal(GK.countsState({ verdict: 'FAIL' }, false), 'unloaded');
   assert.equal(GK.countsState(null, false), 'none');
 });
 
@@ -56,7 +57,7 @@ test('done steps and boxes are cocoa, not PASS green', () => {
 
 test('editor bar wraps instead of overlap, and phones hide the Ctrl hint', () => {
   assert.match(css, /\.editor-bar \{ flex-wrap: wrap; row-gap: 6px; \}/);
-  assert.match(css, /\.file-field \{ flex: 1 1 96px; max-width: calc\(19ch \+ 40px\); \}/);
+  assert.match(css, /\.file-field \{ flex: 1 1 calc\(15ch \+ 32px\); max-width: calc\(19ch \+ 40px\); \}/);
   assert.match(css, /\(hover: none\) and \(pointer: coarse\) \{\s*\.btn-scan kbd \{ display: none; \}/);
 });
 

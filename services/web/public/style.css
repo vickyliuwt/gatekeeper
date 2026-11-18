@@ -249,9 +249,11 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
 .live-actions:empty { display: none; }
 .log { margin-top: 12px; border-radius: var(--r-md); background: #FBF6F2; box-shadow: inset 0 0 0 1px var(--line); padding: 11px 14px; }
 .log-title { font-size: 12px; font-weight: 650; color: var(--ink-3); margin-bottom: 6px; }
-.log-lines { list-style: none; margin: 0; padding: 0; max-height: 150px; overflow: auto; font-family: var(--mono); font-size: 12px; line-height: 1.7; }
+.log-lines { list-style: none; margin: 0; padding: 0; max-height: calc(7 * 1.7em); overflow: auto; font-family: var(--mono); font-size: 12px; line-height: 1.7; }
 .log-lines li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; color: var(--ink-2); }
 .log-lines time { color: var(--ink-3); }
+.log-text { display: flex; align-items: baseline; column-gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.log-text > .verb, .log-text > .count { flex: none; }
 .log-lines .verb { display: inline-block; min-width: 3.4em; margin-right: 2px; font-weight: 700; color: var(--run); }
 .log-lines .verb[data-verb="POST"] { color: var(--coral-deep); }
 .log-lines li[data-tone="pass"] span { color: var(--pass); }
@@ -375,6 +377,7 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
 .sev-high .sev { background: var(--fail-bg); color: var(--fail); }
 .sev-medium .sev { background: var(--warn-bg); color: var(--warn); }
 .sev-low .sev { background: var(--low-bg); color: var(--low); }
+.sev-unknown .sev { background: var(--surface-2, #F3EEEA); color: var(--ink-2, #5C5552); box-shadow: inset 0 0 0 1px var(--line); }
 .finding-name { font-weight: 700; font-size: 14px; }
 .rule { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
 .where { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--ink-2); padding: 2px 8px; border-radius: 7px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
@@ -454,11 +457,9 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
 
 /* motion */
 /* one calm entrance for the first screen then only state changes */
-.js .reveal { opacity: 0; transform: translateY(10px); transition: opacity 0.65s var(--ease), transform 0.65s var(--ease); }
+.js .reveal { opacity: 0; transform: translateY(8px); transition: opacity 0.45s var(--ease), transform 0.45s var(--ease); }
 .js .reveal.is-in { opacity: 1; transform: none; }
-.js .reveal.d2 { transition-delay: 0.07s; }
-.js .reveal.d3 { transition-delay: 0.14s; }
-.js .reveal.d4 { transition-delay: 0.21s; }
+.js .reveal.d2 { transition-delay: 0.06s; }
 .hero-art .art { animation: float 7s ease-in-out infinite; }
 @keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(117, 101, 150, 0.28); } 70% { box-shadow: 0 0 0 9px rgba(117, 101, 150, 0); } 100% { box-shadow: 0 0 0 0 rgba(117, 101, 150, 0); } }
 @keyframes blink { 50% { opacity: 0.35; } }
@@ -647,17 +648,26 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
 /* done steps and boxes use calm cocoa */
 /* green only means PASS */
 /* not scanned shows dashes and quiet notes and never a fake 0 */
-.sev-list[data-state="none"] dd { color: var(--ink-3); }
-.sev-list[data-state="none"] .sev-dot { background: var(--line-strong); }
+.sev-list[data-state="unloaded"] dd, .sev-list[data-state="none"] dd { color: var(--ink-3); }
+.sev-list[data-state="unloaded"] .sev-dot, .sev-list[data-state="none"] .sev-dot { background: var(--line-strong); }
 .cap-note { margin-top: 10px; font-size: 13px; }
 /* editor bar */
-/* file box shrinks first then the bar wraps */
-/* it never goes under a button */
+/* file box keeps room for about 15 letters so the name is never cut */
+/* when the bar is full the size hint moves down to a second line */
+/* a very long name ends with dots and never goes under a button */
 .editor-bar { flex-wrap: wrap; row-gap: 6px; }
-.file-field { flex: 1 1 96px; max-width: calc(19ch + 40px); }
-.file-field input { width: 100%; min-width: 0; }
+.file-field { flex: 1 1 calc(15ch + 32px); max-width: calc(19ch + 40px); }
+.file-field input { width: 100%; min-width: 0; text-overflow: ellipsis; }
 /* touch screens and phones have no Ctrl key */
 /* so no shortcut hint */
 @media (max-width: 600px), (hover: none) and (pointer: coarse) {
   .btn-scan kbd { display: none; }
 }
+
+/* busy button keeps focus plus undo and report retry */
+.btn-primary[aria-disabled="true"] { opacity: 0.65; cursor: progress; transform: none; }
+.btn-quiet[aria-disabled="true"] { opacity: 0.6; cursor: progress; }
+#undo-code { color: var(--coral-deep); }
+.reload-report { margin-top: 10px; }
+#problem-text:focus, #findings-title:focus { outline: none; }
+#problem-text:focus-visible, #findings-title:focus-visible { outline: 2px solid var(--coral-deep); outline-offset: 3px; border-radius: 4px; }

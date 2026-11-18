@@ -134,7 +134,8 @@ test('the report has a scan log seen by this browser', () => {
 });
 
 test('review fixes: honest, accessible, no double scan', () => {
-  assert.match(app, /event\.preventDefault\(\);\s*if \(ui\.scan\.disabled\) return undefined;/);
+  // the busy flag stops a second scan and the button keeps focus
+  assert.match(app, /event\.preventDefault\(\);\s*if \(sending\) return undefined;/);
   assert.match(app, /Scan finished: \$\{info\.label\}, not scanned\./);
   // openedDone was the same as fromLink so it is gone
   assert.doesNotMatch(app, /openedDone/);

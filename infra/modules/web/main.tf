@@ -41,6 +41,9 @@ resource "aws_lambda_function" "submit" {
   memory_size   = 256
   timeout       = 10
 
+  # hard cap only when the lab limits tool says this account allows it
+  reserved_concurrent_executions = var.cap_lambdas ? 1 : -1
+
   image_config {
     command = ["src/lambda.submitHandler"]
   }
@@ -66,6 +69,9 @@ resource "aws_lambda_function" "results" {
   architectures = ["x86_64"]
   memory_size   = 256
   timeout       = 10
+
+  # hard cap only when the lab limits tool says this account allows it
+  reserved_concurrent_executions = var.cap_lambdas ? 2 : -1
 
   image_config {
     command = ["src/lambda.resultsHandler"]
@@ -184,4 +190,24 @@ resource "aws_cloudwatch_metric_alarm" "web_errors" {
       dimensions  = { FunctionName = aws_lambda_function.results.function_name }
     }
   }
+}
+
+# whole account Lambdas running at the same time
+# Learner Lab switches an account off near 10 so this warns at 5
+# no dimensions means the metric is for the whole account
+resource "aws_cloudwatch_metric_alarm" "lambda_concurrency" {
+  count = var.enable_alarm ? 1 : 0
+
+  alarm_name          = "gk-lambda-concurrency"
+  alarm_description   = "5 or more Lambdas ran at the same time in this account. Learner Lab may switch an account off near 10. Stop every test and run lab-limits.mjs."
+  namespace           = "AWS/Lambda"
+  metric_name         = "ConcurrentExecutions"
+  statistic           = "Maximum"
+  period              = 60
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  threshold           = 5
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = var.alarm_topic_arn == null ? [] : [var.alarm_topic_arn]
 }
