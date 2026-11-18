@@ -1,8 +1,13 @@
-// Build and push one service image, with the same rules as Part A's scripts/ensure-webhook-image.sh:
-//   tag = full SHA of the last commit that touched services/NAME (so commit first),
-//   reuse the image when ECR already has that tag (tags are IMMUTABLE),
-//   build for linux/amd64 without provenance (Lambda rejects attestation manifests),
-//   return the sha256 digest; Terraform pins each Lambda to the digest, never to a tag.
+// build and push one service image
+// same rules as the webhook image script
+// the tag is the full sha of the last commit that touched that service
+// so commit first
+// if ECR already has that tag use it again
+// tags can not change
+// linux amd64 and no provenance
+// lambda rejects attestation manifests
+// returns the sha256 digest
+// Terraform pins each lambda to it and not to a tag
 import { PARTS, aws, info, isCommitSha, isDigest, run } from './run.mjs';
 
 export function serviceTag(service, runner = run) {

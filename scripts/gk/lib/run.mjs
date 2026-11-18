@@ -1,6 +1,9 @@
-// Shared helpers for the GateKeeper tools in scripts/gk. No npm dependencies.
-// Every program starts WITHOUT a shell, with an argument array, so PowerShell 5.1 quoting and the
-// space in "Final Project" can never break a command. Works the same on Windows, macOS and Linux.
+// shared helpers for our deploy scripts
+// no npm packages
+// programs start without a shell and use argument arrays
+// so PowerShell quoting
+// and a space in a folder name can not break a command
+// on Windows and macOS and Linux
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -13,8 +16,9 @@ export const INFRA = join(REPO_ROOT, 'infra');
 export const TFVARS_JSON = join(INFRA, 'gk.auto.tfvars.json');
 export const PLACEHOLDER_DIGEST = `sha256:${'0'.repeat(64)}`;
 
-// README.md: one row per part. A part is ready to deploy when its service folder has a
-// Dockerfile and a package-lock.json, and its root .tf file declares its ECR repository.
+// one row per part
+// ready means the service folder has a Dockerfile and a package lock file
+// and its root tf file has its ECR repository
 export const PARTS = Object.freeze({
   intake: { service: 'webhook', ecr: 'gatekeeper/webhook', resource: 'webhook', enableVar: 'enable_intake', digestVar: 'webhook_image_digest', tfFile: 'ecr.tf', param: '/gatekeeper/webhook-secret', owner: 'Lingsong (Part A)' },
   worker: { service: 'worker', ecr: 'gatekeeper/worker', resource: 'worker', enableVar: 'enable_worker', digestVar: 'worker_image_digest', tfFile: 'worker.tf', param: '/gatekeeper/github-token', owner: 'Yuyao (Part B)' },
@@ -91,8 +95,9 @@ export function parseArgs(argv) {
   return o;
 }
 
-// Terraform variables for one deploy. Every switch is explicit, so a deploy never builds a
-// part you did not name, even if an old gk.auto.tfvars.json says otherwise.
+// Terraform vars for one deploy
+// every switch is set so no deploy builds
+// a part you did not name even if an old local switches file says so
 export function varsFor({ parts, repo = null, listRepo = null, digests = {} }) {
   const vars = {};
   for (const name of PART_NAMES) vars[PARTS[name].enableVar] = parts.includes(name);
@@ -117,7 +122,9 @@ export function partProblems(name, root = REPO_ROOT) {
 }
 
 export const newSecretHex = () => randomBytes(32).toString('hex');
-// 32 letters and digits without l, o, 0 and 1 (easy to read aloud in the demo video). 12 random characters.
+// 32 letters and digits with no l o 0 or 1
+// easy to read out loud
+// 12 random chars
 export function newDemoCode(bytes = randomBytes(12)) {
   const alphabet = 'abcdefghijkmnpqrstuvwxyz23456789';
   const c = [...bytes].map((b) => alphabet[b & 31]).join('');

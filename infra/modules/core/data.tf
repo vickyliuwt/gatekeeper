@@ -1,5 +1,6 @@
-# The shared data bucket.
-# Part B writes reports/ and reads pasted/. Part C writes pasted/ and reads reports/.
+# shared data bucket named with the account id
+# Part B writes reports and reads pasted
+# Part C writes pasted and reads reports
 variable "lock_reports_to_worker" {
   description = "Week-1 test (Part B): deny writes to reports/ unless the caller is gk-worker."
   type        = bool
@@ -13,6 +14,12 @@ locals {
   data_bucket_arn  = "arn:aws:s3:::${local.data_bucket_name}"
 }
 
+# Learner Lab denies reading the bucket object lock setting with a 403
+# but the bucket resource reads it after every create and refresh
+# so the AWS CLI makes and deletes only the bucket
+# every setting below stays in
+# Terraform
+# same idea as the bootstrap folder
 resource "terraform_data" "data_bucket" {
   input = local.data_bucket_name
 

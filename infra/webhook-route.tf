@@ -28,8 +28,9 @@ resource "aws_apigatewayv2_route" "webhook" {
   depends_on = [aws_lambda_permission.webhook_api]
 }
 
-# Part A's per-route limit, plugged into module.core by infra/core.tf. route_key comes from the
-# route itself, so the stage waits until the route exists.
+# route limit for Part A
+# added to the stage in the core file
+# the route key comes from the route so the stage waits for the route
 locals {
   intake_route_throttles = [for route in aws_apigatewayv2_route.webhook : {
     route_key   = route.route_key
@@ -42,7 +43,8 @@ output "webhook_url" {
   value = var.enable_intake ? "${module.core.api_endpoint}/webhooks/github" : null
 }
 
-# enable_intake added count. Keep Part A's existing integration, permission and route.
+# count added for the intake switch
+# moved keeps the live Part A route pieces
 moved {
   from = aws_apigatewayv2_integration.webhook
   to   = aws_apigatewayv2_integration.webhook[0]

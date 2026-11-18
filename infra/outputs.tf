@@ -1,4 +1,4 @@
-# Shared root outputs that every member's scripts and smoke tests read.
+# shared outputs that all our scripts and smoke tests read
 output "api_endpoint" {
   description = "Base URL of the HTTP API (changes after every destroy and apply)."
   value       = module.core.api_endpoint

@@ -11,7 +11,8 @@ output "webhook_repository_url" {
   value       = one(aws_ecr_repository.webhook[*].repository_url)
 }
 
-# enable_intake added count. Keep Part A's existing repository instead of replacing it.
+# count added for the intake switch
+# moved keeps the live Part A repo with no replace
 moved {
   from = aws_ecr_repository.webhook
   to   = aws_ecr_repository.webhook[0]

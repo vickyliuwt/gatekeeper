@@ -1,7 +1,9 @@
 #!/usr/bin/env node
-// Run it yourself. The Paste and Scan access code lives in SSM /gatekeeper/demo-code (SecureString).
-//   node scripts/gk/demo-code.mjs --show   print it (only in your own terminal; never paste it into a chat or a slide)
-//   node scripts/gk/demo-code.mjs --new    set a new random code; gk-submit picks it up within 5 minutes
+// the access code lives in SSM as a secure string
+// the show flag prints it
+// only in your own terminal
+// the new flag makes a new random code
+// it is live in 5 min
 import { aws, cli, info, newDemoCode, step } from './lib/run.mjs';
 
 export const HELP = 'Usage: node scripts/gk/demo-code.mjs --show | --new';

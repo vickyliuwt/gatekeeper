@@ -5,8 +5,9 @@ root=$(git rev-parse --show-toplevel)
 cd "$root"
 
 region=us-east-1
-# Both applies pin enable_intake=true, so an infra/gk.auto.tfvars.json written by scripts/gk/deploy.mjs
-# in this checkout can never turn Part A off in this account.
+# both applies keep the intake switch on
+# so a local switches file from
+# the deploy script can never turn Part A off here
 repo=${1:-}
 if [[ ! "$repo" =~ ^[[:alnum:]_.-]+/[[:alnum:]_.-]+$ ]]; then
   echo "Usage: scripts/deploy.sh OWNER/REPO" >&2

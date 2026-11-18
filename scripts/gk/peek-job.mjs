@@ -1,7 +1,10 @@
 #!/usr/bin/env node
-// Follow one job (README.md, proposal "Trace a stuck PR"): its DynamoDB item, its report, and a
-// CloudWatch Logs Insights query over every gk- Lambda log group. Read only.
-//   node scripts/gk/peek-job.mjs paste-3f2a...        node scripts/gk/peek-job.mjs pr-7812-9c1e... --logs
+// follow one job like Trace a stuck PR in our proposal
+// its DynamoDB item and its report
+// and a Logs Insights query over every gk lambda log group
+// read only
+// give it one job ID
+// add the logs flag for the log lines too
 import { setTimeout as sleep } from 'node:timers/promises';
 import { aws, cli, getAccount, info, step } from './lib/run.mjs';
 
@@ -22,7 +25,7 @@ export const unmarshalItem = (item) => Object.fromEntries(Object.entries(item ||
 
 export const insightsQuery = (jobId) => `fields @timestamp, @log, svc, stage, msg\n| filter @message like "${jobId}"\n| sort @timestamp asc\n| limit 50`;
 
-// Where did it stop? (README.md, "Job item")
+// where did it stop
 export function explain(job) {
   if (!job) return 'No item: the front door never created it (wrong jobId, expired by TTL, or the request failed before PutItem).';
   if (job.phase === 'QUEUED') return 'QUEUED: nothing has claimed it. Check that a worker is deployed and running for this account.';
