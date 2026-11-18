@@ -17,15 +17,25 @@ export const TFVARS_JSON = join(INFRA, 'gk.auto.tfvars.json');
 export const PLACEHOLDER_DIGEST = `sha256:${'0'.repeat(64)}`;
 
 // one row per part
-// ready means the service folder has a Dockerfile and a package lock file
+// ready means its folder has a Dockerfile and a package lock file
 // and its root tf file has its ECR repository
 export const PARTS = Object.freeze({
   intake: { service: 'webhook', ecr: 'gatekeeper/webhook', resource: 'webhook', enableVar: 'enable_intake', digestVar: 'webhook_image_digest', tfFile: 'ecr.tf', param: '/gatekeeper/webhook-secret', owner: 'Lingsong (Part A)' },
-  worker: { service: 'worker', ecr: 'gatekeeper/worker', resource: 'worker', enableVar: 'enable_worker', digestVar: 'worker_image_digest', tfFile: 'worker.tf', param: '/gatekeeper/github-token', owner: 'Yuyao (Part B)' },
+  worker: { service: 'worker', dir: 'worker', context: '.', dockerfile: 'worker/Dockerfile', watch: ['worker', 'sast/backend'], ecr: 'gatekeeper/worker', resource: 'worker', enableVar: 'enable_worker', digestVar: 'worker_image_digest', tfFile: 'worker.tf', param: '/gatekeeper/github-token', owner: 'Yuyao (Part B)' },
   web: { service: 'web', ecr: 'gatekeeper/web', resource: 'web', enableVar: 'enable_web', digestVar: 'web_image_digest', tfFile: 'web.tf', param: '/gatekeeper/demo-code', owner: 'Weiting (Part C)' },
 });
 export const PART_NAMES = Object.freeze(Object.keys(PARTS));
 export const ecrTarget = (name) => `aws_ecr_repository.${PARTS[name].resource}[0]`;
+
+// where a part keeps its Dockerfile and lock file
+// web and webhook live in services
+// the worker lives in worker and builds from the repo root
+// because its image also copies the course scanner
+export function partPaths(name) {
+  const p = PARTS[name];
+  const dir = p.dir ?? `services/${p.service}`;
+  return { dir, context: p.context ?? dir, dockerfile: p.dockerfile ?? `${dir}/Dockerfile`, watch: p.watch ?? [dir] };
+}
 
 export function run(cmd, args, { input, inherit = false, allowFail = false, cwd = REPO_ROOT, env } = {}) {
   const result = spawnSync(cmd, args, {
@@ -112,9 +122,10 @@ export const placeholderDigests = (parts) => Object.fromEntries(parts.map((p) =>
 export function partProblems(name, root = REPO_ROOT) {
   const p = PARTS[name];
   const problems = [];
-  const dir = join(root, 'services', p.service);
-  if (!existsSync(join(dir, 'Dockerfile'))) problems.push(`services/${p.service}/Dockerfile is missing`);
-  if (!existsSync(join(dir, 'package-lock.json'))) problems.push(`services/${p.service}/package-lock.json is missing (run npm install there and commit it)`);
+  const rel = partPaths(name).dir;
+  const dir = join(root, ...rel.split('/'));
+  if (!existsSync(join(dir, 'Dockerfile'))) problems.push(`${rel}/Dockerfile is missing`);
+  if (!existsSync(join(dir, 'package-lock.json'))) problems.push(`${rel}/package-lock.json is missing (run npm install there and commit it)`);
   const tf = join(root, 'infra', p.tfFile);
   const declares = existsSync(tf) && new RegExp(`resource\\s+"aws_ecr_repository"\\s+"${p.resource}"`).test(readFileSync(tf, 'utf8'));
   if (!declares) problems.push(`infra/${p.tfFile} has no aws_ecr_repository "${p.resource}" yet (${p.owner} adds it)`);
