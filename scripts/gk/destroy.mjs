@@ -1,13 +1,16 @@
 #!/usr/bin/env node
-// GateKeeper destroy tool. Deletes everything Terraform made in YOUR account and keeps the state bucket and
-// the SSM parameters on purpose (the next deploy reuses them). Then lists any GateKeeper resource still there.
+// GateKeeper destroy tool
+// deletes everything Terraform made in your account
+// keeps the state bucket and SSM params on purpose
+// the next deploy uses them again
+// then lists leftovers
 import { rmSync } from 'node:fs';
 import { TFVARS_JSON, aws, cli, getAccount, info, step, terraform, terraformInit } from './lib/run.mjs';
 
 export const HELP = 'Usage: node scripts/gk/destroy.mjs [--yes]   (--yes skips Terraform\'s "yes" question)';
 
-// Everything GateKeeper creates is named gk-* or gatekeeper/*. After a destroy, only the state bucket
-// gk-tfstate-ACCOUNT and the SSM parameters /gatekeeper/* should remain (both kept on purpose).
+// everything GateKeeper makes starts with gk or gatekeeper
+// after destroy only the state bucket and our SSM params stay on purpose
 export const LEFTOVER_CHECKS = Object.freeze([
   ['Lambda functions', ['lambda', 'list-functions', '--query', "Functions[?starts_with(FunctionName, 'gk-')].FunctionName", '--output', 'json']],
   ['ECR repositories', ['ecr', 'describe-repositories', '--query', "repositories[?starts_with(repositoryName, 'gatekeeper/')].repositoryName", '--output', 'json']],

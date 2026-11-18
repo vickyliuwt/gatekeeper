@@ -1,11 +1,15 @@
 #!/usr/bin/env node
-// Smoke test after a deploy: proves each piece works, with one PASS/FAIL table.
-//   node scripts/gk/smoke.mjs              core checks, plus the page checks when Part C is deployed
-//   node scripts/gk/smoke.mjs --with-code  also one real paste (reads the access code inside the script, never prints it)
+// smoke test after a deploy
+// one PASS or FAIL table with one row per piece
+// no flag runs core checks and page checks if Part C is up
+// the with code flag adds 1 real paste
+// the code is never printed
 import { aws, cli, info, readOutputs, step } from './lib/run.mjs';
 
 export const HELP = 'Usage: node scripts/gk/smoke.mjs [--with-code]';
-// A deliberately vulnerable line for the real paste, joined at run time so our own scanner does not flag this file.
+// risky line on purpose for the real paste
+// joined at run time
+// so our own self scan does not flag this file
 export const SAMPLE_SECRET_LINE = ['const pass', 'word = "smoke-test-1234";'].join('');
 
 async function probe(fetchFn, url, init) {

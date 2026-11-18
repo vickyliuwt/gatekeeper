@@ -1,5 +1,7 @@
-# Part B (Yuyao): scan worker. Stub: the worker stays off until Part B replaces this file.
-# Keep the variable lock_reports_to_worker when you replace it: infra/core.tf passes it to the core module.
+# Part B scan worker by Yuyao
+# a stub that stays off until Part B replaces this file
+# keep the lock reports switch
+# the core file passes it to the core module
 variable "enable_worker" {
   description = "Turn on Part B: gk-worker, its queue trigger and its alarms."
   type        = bool

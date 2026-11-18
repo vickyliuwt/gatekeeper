@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-// GateKeeper deploy tool. One command on Windows PowerShell 5.1, the PyCharm
-// terminal and macOS. Deploys core plus ONLY the parts you name into YOUR OWN Learner Lab account.
+// GateKeeper deploy tool
+// same command on PowerShell and PyCharm and macOS
+// deploys core and only the parts you name
+// into your own Learner Lab account
 import { ensureImage } from './lib/images.mjs';
 import {
   PARTS, PART_NAMES, REGION, aws, cli, ecrTarget, getAccount, info, newDemoCode, newSecretHex, partProblems, placeholderDigests,
@@ -56,9 +58,11 @@ export function ensureStateBucket(account, { awsCli = aws, print = info } = {}) 
   return bucket;
 }
 
-// Parts that already live in THIS account's Terraform state. Every switch is explicit, so a deploy that leaves a
-// live part out would delete it (for example --part web in Lingsong's integration account would delete gk-webhook).
-// The tool stops first, unless --allow-remove says that is really wanted.
+// parts already live in the state of this account
+// a deploy that leaves one out would delete it
+// like deploying only the web part in the account of Lingsong
+// would delete her webhook
+// so stop first unless the allow remove flag is on
 export function liveParts(stateList) {
   const lines = String(stateList ?? '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   return PART_NAMES.filter((name) => {

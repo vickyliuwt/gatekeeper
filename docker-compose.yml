@@ -1,13 +1,16 @@
-# Local Lambda emulators for the three images. Every container listens on 8080 inside:
-#   9001 webhook (A, profile webhook)   9002 worker (B, profile worker)
-#   9003 web image as gk-results and 9004 web image as gk-submit (C, profile web)
-# Start ONLY your own part, from the repo root (PowerShell or bash):
-#   docker compose --profile web up --build -d
-#   node services/web/scripts/invoke-local.js        (Part C checks; add --aws, see below)
-#   docker compose --profile web down
-# Calls that reach AWS need keys in THIS window and a deployed core:
-#   set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN in this window first
-# Without keys the page (GET /), routing and input checks still work.
+# local lambda emulators for the 3 images
+# each container listens on 8080 inside
+# port 9001 is the webhook for Part A
+# port 9002 is the worker for Part B
+# port 9003 is the web image as results and 9004 as submit for Part C
+# start only your own part from the repo root
+# works in PowerShell or bash
+# for Part C start the web profile with docker compose
+# then run the invoke local script for the Part C checks
+# stop the web profile when you are done
+# calls that reach AWS need keys in this window and a deployed core
+# set the 3 AWS key variables in this window first
+# without keys the page and routing and input checks still work
 x-aws-env: &aws-env
   AWS_REGION: us-east-1
   AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
@@ -28,6 +31,8 @@ services:
       JOBS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/${ACCOUNT_ID:-000000000000}/gk-jobs
       WEBHOOK_SECRET_PARAM: /gatekeeper/webhook-secret
 
+  # the worker folder comes with Part B
+  # until it is on this branch do not start the worker profile
   worker:
     build: ./services/worker
     profiles: ["worker"]

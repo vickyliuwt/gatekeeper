@@ -56,7 +56,8 @@ resource "aws_lambda_function" "webhook" {
   }
 }
 
-# enable_intake added count. Keep Part A's existing function instead of replacing it.
+# count added for the intake switch
+# moved keeps the live Part A function with no replace
 moved {
   from = aws_lambda_function.webhook
   to   = aws_lambda_function.webhook[0]
