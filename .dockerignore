@@ -1,0 +1,9 @@
+**/node_modules
+**/.git
+worker/after-fix*
+worker/baseline
+worker/test
+worker/scripts
+sast/backend/server.js
+sast/backend/test-vulnerable.js
+*.md

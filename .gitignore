@@ -205,3 +205,6 @@ crash.*.log
 !*.tfvars.example
 !*.tfvars.json.example
 !backend.hcl.example
+
+# Generated scanner test fixture
+worker/test/fixtures/hostile.js
