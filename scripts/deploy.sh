@@ -13,15 +13,17 @@ fi
 
 account=$(aws sts get-caller-identity --query Account --output text --no-cli-pager)
 bucket="gk-tfstate-$account"
-printf 'Deploying Part A for %s in AWS account %s (%s).\n' "$repo" "$account" "$region"
+printf 'Deploying webhook and worker for %s in AWS account %s (%s).\n' "$repo" "$account" "$region"
 
-parameter_type=$(aws ssm get-parameter \
-  --region "$region" --name /gatekeeper/webhook-secret \
-  --query 'Parameter.Type' --output text --no-cli-pager)
-if [[ "$parameter_type" != "SecureString" ]]; then
-  echo "Expected /gatekeeper/webhook-secret to be a SecureString." >&2
-  exit 1
-fi
+for parameter in /gatekeeper/webhook-secret /gatekeeper/github-token; do
+  parameter_type=$(aws ssm get-parameter \
+    --region "$region" --name "$parameter" \
+    --query 'Parameter.Type' --output text --no-cli-pager)
+  if [[ "$parameter_type" != "SecureString" ]]; then
+    printf 'Expected %s to be a SecureString.\n' "$parameter" >&2
+    exit 1
+  fi
+done
 
 # Keep a local bootstrap state tied to its original Lab account.
 if [[ -s infra/bootstrap/terraform.tfstate ]]; then
@@ -45,27 +47,37 @@ has_ecr=$(python3 -c '
 import json, sys
 text = sys.stdin.read().strip()
 resources = json.loads(text).get("resources", []) if text else []
-print(any(r.get("mode") == "managed" and not r.get("module")
-          and r.get("type") == "aws_ecr_repository" and r.get("name") == "webhook"
-          for r in resources))
+names = {
+    r.get("name") for r in resources
+    if r.get("mode") == "managed" and not r.get("module")
+    and r.get("type") == "aws_ecr_repository"
+}
+print({"webhook", "worker"}.issubset(names))
 ' <<< "$state")
 unset state
 
 if [[ "$has_ecr" != "True" ]]; then
-  # The digest is a required root input. Only ECR is targeted in this step.
+  # Both digests are required root inputs. Only ECR is targeted here.
   placeholder=$(printf 'sha256:%064d' 0)
   terraform -chdir=infra apply \
     -target=aws_ecr_repository.webhook \
+    -target=aws_ecr_repository.worker \
     -var="allowed_repo=$repo" \
-    -var="webhook_image_digest=$placeholder"
+    -var="webhook_image_digest=$placeholder" \
+    -var="worker_image_digest=$placeholder"
 fi
 
+./scripts/ensure-reports-bucket.sh
+
 digest=$(./scripts/ensure-webhook-image.sh)
+worker_digest=$(./scripts/ensure-worker-image.sh)
 printf 'Deploying webhook image %s\n' "$digest"
+printf 'Deploying worker image %s\n' "$worker_digest"
 
 terraform -chdir=infra apply \
   -var="allowed_repo=$repo" \
-  -var="webhook_image_digest=$digest"
+  -var="webhook_image_digest=$digest" \
+  -var="worker_image_digest=$worker_digest"
 
 terraform -chdir=infra output -raw webhook_url
 printf '\n'
