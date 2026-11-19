@@ -51,3 +51,29 @@ Elapsed time from the start of teardown to confirmation of GitHub HTTP 202
 was 20 minutes 52 seconds, within the 30-minute target. GitHub reported a
 delivery duration of 2.08 seconds. The response contained the expected job ID,
 `pr-1441247564-55485306794e441cb3fc3e522598336e8a8be6db`.
+
+## Integrated PR scanning and merge gate validation
+
+Validated the deployed webhook and worker using PR #1 in
+`Da-qiong/gatekeeper-demo`.
+
+The deployed flow is GitHub webhook -> API Gateway -> webhook Lambda ->
+DynamoDB and SQS -> worker Lambda -> S3 report and GitHub commit status.
+
+- Commit `58ca170c7e1934d76993f1592a3427803c8e116c` contained
+  `eval(input)`. The worker scanned two files and reported one HIGH finding.
+  The `gatekeeper/sast` status was `failure`, and GitHub reported the PR
+  merge state as `blocked`.
+- Commit `86349b5492a680141847d10b87737be56cdb1eac` replaced `eval`
+  with `JSON.parse`. The worker scanned two files and reported zero findings.
+  The status was `success`, and GitHub reported the merge state as `clean`.
+- The demo repository's main branch requires `gatekeeper/sast`, requires
+  branches to be up to date, and enforces the rule for administrators.
+- The PR remains open. Merge eligibility was verified through the API.
+
+The worker reads its GitHub token from SSM SecureString. Its SQS trigger
+uses batch size 1 and maximum concurrency 2.
+
+Local validation passed 28 worker tests and 35 webhook tests.
+Worker retry behavior was tested with mocks; AWS failure-recovery testing
+remains pending.
