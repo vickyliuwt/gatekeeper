@@ -11,6 +11,7 @@ import {
 process.env.AWS_REGION = 'us-east-1';
 process.env.JOBS_TABLE = 'test-jobs';
 process.env.REPORTS_BUCKET = 'test-reports';
+process.env.GITHUB_TOKEN = 'test-token';
 
 const { handler } = await import('../src/handler.js');
 
@@ -31,7 +32,7 @@ function event() {
 }
 
 function mockServices(t, job) {
-  const state = { reads: [], reports: [], updates: [] };
+  const state = { reads: [], reports: [], updates: [], order: [] };
 
   t.mock.method(DynamoDBDocumentClient.prototype, 'send', async command => {
     assert.equal(command.input.TableName, 'test-jobs');
@@ -41,6 +42,15 @@ function mockServices(t, job) {
 
     assert.ok(command instanceof UpdateCommand);
     state.updates.push(command.input);
+    const expression = command.input.UpdateExpression;
+    if (expression.startsWith('SET phase = :phase,')) {
+      state.order.push('done');
+    } else if (expression.startsWith('SET phase = :failed,')) {
+      state.order.push('failed');
+    } else {
+      assert.ok(expression.startsWith('SET phase = :running,'));
+      state.order.push('claim');
+    }
     return {};
   });
 
@@ -53,6 +63,7 @@ function mockServices(t, job) {
     }
 
     assert.ok(command instanceof PutObjectCommand);
+    state.order.push('report');
     state.reports.push({
       key: command.input.Key,
       body: JSON.parse(command.input.Body),
@@ -95,8 +106,16 @@ test('PR worker fetches the pinned commit, writes a report and completes the job
   const base = 'https://api.github.com/repos/example/demo';
   const urls = [];
 
-  t.mock.method(globalThis, 'fetch', async url => {
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
     urls.push(url);
+
+    if (url === `${base}/statuses/${HEAD_SHA}`) {
+      assert.equal(options.method, 'POST');
+      const status = JSON.parse(options.body);
+      assert.equal(status.context, 'gatekeeper/sast');
+      state.order.push(status.state);
+      return new Response(null, { status: 201 });
+    }
 
     if (url === `${base}/git/commits/${HEAD_SHA}`) {
       return Response.json({ sha: HEAD_SHA, tree: { sha: TREE_SHA } });
@@ -123,7 +142,10 @@ test('PR worker fetches the pinned commit, writes a report and completes the job
   });
 
   assert.deepEqual(await handler(event()), { ok: true });
-  assert.equal(urls.length, 3);
+  assert.equal(urls.length, 5);
+  assert.deepEqual(state.order, [
+    'claim', 'pending', 'report', 'failure', 'done',
+  ]);
   assert.equal(state.reads.length, 0);
   assertCompleted(state, 'src/example.js');
 });
@@ -154,12 +176,138 @@ test('GitHub failure rejects the invocation without publishing a completed repor
     headSha: HEAD_SHA,
   });
 
-  t.mock.method(globalThis, 'fetch', async () =>
-    Response.json({ message: 'Forbidden' }, { status: 403 })
-  );
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (options.method === 'POST') {
+      return new Response(null, { status: 201 });
+    }
+    return Response.json({ message: 'Forbidden' }, { status: 403 });
+  });
 
   await assert.rejects(handler(event()), /HTTP 403/);
   assert.equal(state.reports.length, 0);
-  assert.equal(state.updates.length, 1);
-  assert.equal(state.updates[0].ExpressionAttributeValues[':running'], 'RUNNING');
+  assert.equal(state.updates.length, 2);
+  assert.equal(state.updates[1].ExpressionAttributeValues[':failed'], 'FAILED');
+  assert.deepEqual(state.order, ['claim', 'failed']);
+});
+
+test('final status failure releases the job and a subsequent invocation completes', async t => {
+  const state = mockServices(t, {
+    jobId: JOB_ID,
+    source: 'pr',
+    repo: 'example/demo',
+    headSha: HEAD_SHA,
+  });
+  let rejectFinalStatus = true;
+
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (options.method === 'POST') {
+      const status = JSON.parse(options.body);
+      state.order.push(status.state);
+
+      if (status.state === 'success' && rejectFinalStatus) {
+        rejectFinalStatus = false;
+        return new Response(null, { status: 503 });
+      }
+      return new Response(null, { status: 201 });
+    }
+
+    if (url.endsWith(`/git/commits/${HEAD_SHA}`)) {
+      return Response.json({ sha: HEAD_SHA, tree: { sha: TREE_SHA } });
+    }
+
+    assert.ok(url.endsWith(`/git/trees/${TREE_SHA}?recursive=1`));
+    return Response.json({ truncated: false, tree: [] });
+  });
+
+  await assert.rejects(handler(event()), /HTTP 503/);
+
+  assert.equal(state.reports.length, 1);
+  assert.equal(state.reports[0].body.scannedFiles, 0);
+  assert.equal(state.updates.length, 2);
+
+  const claim = state.updates[0];
+  const recovery = state.updates[1];
+  assert.equal(recovery.ExpressionAttributeValues[':failed'], 'FAILED');
+  assert.equal(
+    recovery.ExpressionAttributeValues[':owner'],
+    claim.ExpressionAttributeValues[':owner'],
+  );
+  assert.equal(
+    recovery.ConditionExpression,
+    'leaseOwner = :owner AND phase = :running',
+  );
+  assert.ok(recovery.UpdateExpression.includes('REMOVE leaseOwner, leaseUntil'));
+  assert.ok(!state.order.includes('done'));
+
+  assert.deepEqual(await handler(event()), { ok: true });
+  assert.equal(state.reports.length, 2);
+  assert.equal(state.updates.length, 4);
+
+  const secondClaim = state.updates[2];
+  const finish = state.updates[3];
+  assert.notEqual(
+    secondClaim.ExpressionAttributeValues[':owner'],
+    claim.ExpressionAttributeValues[':owner'],
+  );
+  assert.equal(finish.ExpressionAttributeValues[':phase'], 'DONE');
+  assert.equal(
+    finish.ExpressionAttributeValues[':owner'],
+    secondClaim.ExpressionAttributeValues[':owner'],
+  );
+  assert.deepEqual(state.order, [
+    'claim', 'pending', 'report', 'success', 'failed',
+    'claim', 'pending', 'report', 'success', 'done',
+  ]);
+});
+
+test('already completed jobs skip source retrieval and status publishing', async t => {
+  t.mock.method(DynamoDBDocumentClient.prototype, 'send', async command => {
+    if (command instanceof UpdateCommand) {
+      throw Object.assign(new Error('Claim rejected'), {
+        name: 'ConditionalCheckFailedException',
+      });
+    }
+
+    assert.ok(command instanceof GetCommand);
+    assert.equal(command.input.ConsistentRead, true);
+    return { Item: { jobId: JOB_ID, phase: 'DONE' } };
+  });
+
+  t.mock.method(globalThis, 'fetch', async () => {
+    assert.fail('Completed jobs must not call GitHub');
+  });
+  t.mock.method(S3Client.prototype, 'send', async () => {
+    assert.fail('Completed jobs must not access S3');
+  });
+
+  assert.deepEqual(await handler(event()), { ok: true });
+});
+
+test('an occupied lease rejects the invocation so the message can retry', async t => {
+  t.mock.method(DynamoDBDocumentClient.prototype, 'send', async command => {
+    if (command instanceof UpdateCommand) {
+      throw Object.assign(new Error('Claim rejected'), {
+        name: 'ConditionalCheckFailedException',
+      });
+    }
+
+    assert.ok(command instanceof GetCommand);
+    assert.equal(command.input.ConsistentRead, true);
+    return {
+      Item: {
+        jobId: JOB_ID,
+        phase: 'RUNNING',
+        leaseOwner: 'another-worker',
+      },
+    };
+  });
+
+  t.mock.method(globalThis, 'fetch', async () => {
+    assert.fail('Unclaimed jobs must not call GitHub');
+  });
+  t.mock.method(S3Client.prototype, 'send', async () => {
+    assert.fail('Unclaimed jobs must not access S3');
+  });
+
+  await assert.rejects(handler(event()), /another worker holds the lease/);
 });

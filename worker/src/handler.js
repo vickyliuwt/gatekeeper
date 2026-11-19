@@ -4,6 +4,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { scanCode } from '../../sast/backend/scanner.js';
 import { fetchPrFiles } from './pr-source.js';
+import { publishCommitStatus } from './github-status.js';
 
 const REGION = process.env.AWS_REGION || 'us-east-1';
 const JOBS_TABLE = process.env.JOBS_TABLE;
@@ -65,9 +66,10 @@ async function finishJob(jobId, owner, patch) {
     TableName: JOBS_TABLE,
     Key: { jobId },
     UpdateExpression: 'SET phase = :phase, verdict = :verdict, counts = :counts, reportKey = :key, updatedAt = :now',
-    ConditionExpression: 'leaseOwner = :owner',
+    ConditionExpression: 'leaseOwner = :owner AND phase = :running',
     ExpressionAttributeValues: {
       ':phase': 'DONE',
+      ':running': 'RUNNING',
       ':verdict': patch.verdict,
       ':counts': patch.counts,
       ':key': patch.reportKey,
@@ -87,74 +89,116 @@ async function processJob({ jobId, traceId }) {
     if (err.name !== 'ConditionalCheckFailedException') throw err;
 
     // The claim can fail for three different reasons. Say which one it was.
-    const { Item } = await ddb.send(new GetCommand({ TableName: JOBS_TABLE, Key: { jobId } }));
+    const { Item } = await ddb.send(new GetCommand({ TableName: JOBS_TABLE, Key: { jobId }, ConsistentRead: true }));
     const reason = !Item ? 'job not found'
       : Item.phase === 'DONE' ? 'job already complete'
       : 'another worker holds the lease';
 
     log('claim_skipped', { jobId, traceId, reason, phase: Item?.phase ?? null });
-    return;
+    if (Item?.phase === 'DONE') return;
+    throw new Error(`Job claim unavailable: ${reason}`);
   }
   log('claimed', { jobId, traceId, owner });
 
-  const { Item: job } = await ddb.send(new GetCommand({ TableName: JOBS_TABLE, Key: { jobId } }));
-  if (!job) throw new Error(`job ${jobId} was not found`);
+  try {
+    const { Item: job } = await ddb.send(new GetCommand({ TableName: JOBS_TABLE, Key: { jobId }, ConsistentRead: true }));
+    if (!job) throw new Error(`job ${jobId} was not found`);
 
-  let files;
-  if (job.source === 'pr') {
-    files = await fetchPrFiles(job, { token: process.env.GITHUB_TOKEN });
-  } else if (job.source === 'paste' || (!job.source && job.codeKey)) {
-    if (!job.codeKey) throw new Error(`job ${jobId} has no codeKey`);
+    if (job.source === 'pr') {
+      await publishCommitStatus(job, {
+        state: 'pending',
+        description: 'Scan in progress.',
+        token: process.env.GITHUB_TOKEN,
+      });
+    }
 
-    const obj = await s3.send(new GetObjectCommand({
+    let files;
+    if (job.source === 'pr') {
+      files = await fetchPrFiles(job, { token: process.env.GITHUB_TOKEN });
+    } else if (job.source === 'paste' || (!job.source && job.codeKey)) {
+      if (!job.codeKey) throw new Error(`job ${jobId} has no codeKey`);
+
+      const obj = await s3.send(new GetObjectCommand({
+        Bucket: REPORTS_BUCKET,
+        Key: job.codeKey,
+      }));
+      files = [{
+        filename: job.filename || 'pasted.js',
+        code: await readBody(obj.Body),
+      }];
+    } else {
+      throw new Error(`job ${jobId} has an unsupported source`);
+    }
+
+    const scannedFiles = files.length;
+    const sourceBytes = files.reduce(
+      (total, file) => total + Buffer.byteLength(file.code, 'utf8'),
+      0,
+    );
+    log('code_loaded', { jobId, traceId, scannedFiles, sourceBytes });
+
+    // scanMs measures scanning; elapsedMs also includes source retrieval.
+    const scanStart = Date.now();
+    const findings = files.flatMap(file =>
+      scanCode(file.code, file.filename).map(maskEvidence)
+    );
+    const scanMs = Date.now() - scanStart;
+    const elapsedMs = Date.now() - startedAt;
+
+    if (elapsedMs > JOB_BUDGET_MS) throw new Error(`job exceeded budget: ${elapsedMs} ms`);
+
+    const { counts, verdict } = summarize(findings);
+    const reportKey = `reports/${jobId}.json`;
+
+    // Report first, verdict second: a reader never sees a verdict with no report behind it.
+    await s3.send(new PutObjectCommand({
       Bucket: REPORTS_BUCKET,
-      Key: job.codeKey,
+      Key: reportKey,
+      ContentType: 'application/json',
+      Body: JSON.stringify({
+        jobId, traceId, verdict, counts,
+        scannedFiles, sourceBytes, scanMs, elapsedMs, findings,
+      }, null, 2)
     }));
-    files = [{
-      filename: job.filename || 'pasted.js',
-      code: await readBody(obj.Body),
-    }];
-  } else {
-    throw new Error(`job ${jobId} has an unsupported source`);
+    log('report_written', { jobId, traceId, reportKey, findings: findings.length });
+
+    if (job.source === 'pr') {
+      await publishCommitStatus(job, {
+        state: verdict,
+        description: `Scanned ${scannedFiles} files: ${counts.HIGH} HIGH, ${counts.MEDIUM} MEDIUM, ${counts.LOW} LOW.`,
+        token: process.env.GITHUB_TOKEN,
+      });
+      log('status_published', { jobId, traceId, verdict });
+    }
+
+    await finishJob(jobId, owner, { verdict, counts, reportKey });
+    log('done', {
+      jobId, traceId, verdict, ...counts,
+      scannedFiles, sourceBytes, scanMs, elapsedMs,
+    });
+  } catch (error) {
+    try {
+      await ddb.send(new UpdateCommand({
+        TableName: JOBS_TABLE,
+        Key: { jobId },
+        UpdateExpression: 'SET phase = :failed, updatedAt = :now REMOVE leaseOwner, leaseUntil',
+        ConditionExpression: 'leaseOwner = :owner AND phase = :running',
+        ExpressionAttributeValues: {
+          ':failed': 'FAILED',
+          ':running': 'RUNNING',
+          ':owner': owner,
+          ':now': new Date().toISOString(),
+        },
+      }));
+    } catch (recoveryError) {
+      log('recovery_failed', {
+        jobId,
+        traceId,
+        errorType: recoveryError.name,
+      });
+    }
+    throw error;
   }
-
-  const scannedFiles = files.length;
-  const sourceBytes = files.reduce(
-    (total, file) => total + Buffer.byteLength(file.code, 'utf8'),
-    0,
-  );
-  log('code_loaded', { jobId, traceId, scannedFiles, sourceBytes });
-
-  // scanMs measures scanning; elapsedMs also includes source retrieval.
-  const scanStart = Date.now();
-  const findings = files.flatMap(file =>
-    scanCode(file.code, file.filename).map(maskEvidence)
-  );
-  const scanMs = Date.now() - scanStart;
-  const elapsedMs = Date.now() - startedAt;
-
-  if (elapsedMs > JOB_BUDGET_MS) throw new Error(`job exceeded budget: ${elapsedMs} ms`);
-
-  const { counts, verdict } = summarize(findings);
-  const reportKey = `reports/${jobId}.json`;
-
-  // Report first, verdict second: a reader never sees a verdict with no report behind it.
-  await s3.send(new PutObjectCommand({
-    Bucket: REPORTS_BUCKET,
-    Key: reportKey,
-    ContentType: 'application/json',
-    Body: JSON.stringify({
-      jobId, traceId, verdict, counts,
-      scannedFiles, sourceBytes, scanMs, elapsedMs, findings,
-    }, null, 2)
-  }));
-  log('report_written', { jobId, traceId, reportKey, findings: findings.length });
-
-  await finishJob(jobId, owner, { verdict, counts, reportKey });
-  log('done', {
-    jobId, traceId, verdict, ...counts,
-    scannedFiles, sourceBytes, scanMs, elapsedMs,
-  });
 }
 
 export const handler = async (event) => {
