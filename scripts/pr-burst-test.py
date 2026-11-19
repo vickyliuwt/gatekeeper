@@ -41,6 +41,20 @@ def aws(*args):
                                '--output', 'json', '--no-cli-pager']))
 
 
+def github_pages(path):
+    # gh follows the Link header, including this endpoint's cursor pagination.
+    # Decode raw JSON in Python to preserve delivery IDs larger than 2**53.
+    output = command(['gh', 'api', f'repos/{REPO}/{path}', '--paginate'])
+    decoder = json.JSONDecoder()
+    remaining = output.lstrip()
+    while remaining:
+        page, end = decoder.raw_decode(remaining)
+        if not isinstance(page, list):
+            raise RuntimeError('Expected a list of webhook deliveries.')
+        yield page
+        remaining = remaining[end:].lstrip()
+
+
 def save(path, data):
     temporary = path.with_suffix('.tmp')
     temporary.write_text(json.dumps(data, indent=2) + '\n', encoding='utf-8')
@@ -161,8 +175,7 @@ def collect(path, state):
     by_branch = {r['branch']: r for r in state['prs']}
     # One demo run is 20 deliveries. Paginate to retain evidence amid later activity.
     selected = []
-    for page in range(1, 11):
-        rows = github(f'hooks/{HOOK}/deliveries?per_page=100&page={page}')
+    for rows in github_pages(f'hooks/{HOOK}/deliveries?per_page=100'):
         if not rows:
             break
         oldest = time.time()
@@ -199,7 +212,7 @@ def collect(path, state):
                              'duration_seconds': detail['duration'],
                              'request_id': headers.get('apigw-requestid'),
                              'response': response})
-        if len(rows) < 100 or oldest < state['started_at'] - 5:
+        if oldest < state['started_at'] - 5:
             break
     save(directory / 'deliveries.json', selected)
 
