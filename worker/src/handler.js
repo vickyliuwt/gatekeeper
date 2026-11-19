@@ -5,6 +5,7 @@ import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-
 import { scanCode } from '../../sast/backend/scanner.js';
 import { fetchPrFiles } from './pr-source.js';
 import { publishCommitStatus } from './github-status.js';
+import { getGitHubToken } from './github-token.js';
 
 const REGION = process.env.AWS_REGION || 'us-east-1';
 const JOBS_TABLE = process.env.JOBS_TABLE;
@@ -104,17 +105,22 @@ async function processJob({ jobId, traceId }) {
     const { Item: job } = await ddb.send(new GetCommand({ TableName: JOBS_TABLE, Key: { jobId }, ConsistentRead: true }));
     if (!job) throw new Error(`job ${jobId} was not found`);
 
+    let githubToken;
+    if (job.source === 'pr') {
+      githubToken = await getGitHubToken();
+    }
+
     if (job.source === 'pr') {
       await publishCommitStatus(job, {
         state: 'pending',
         description: 'Scan in progress.',
-        token: process.env.GITHUB_TOKEN,
+        token: githubToken,
       });
     }
 
     let files;
     if (job.source === 'pr') {
-      files = await fetchPrFiles(job, { token: process.env.GITHUB_TOKEN });
+      files = await fetchPrFiles(job, { token: githubToken });
     } else if (job.source === 'paste' || (!job.source && job.codeKey)) {
       if (!job.codeKey) throw new Error(`job ${jobId} has no codeKey`);
 
@@ -166,7 +172,7 @@ async function processJob({ jobId, traceId }) {
       await publishCommitStatus(job, {
         state: verdict,
         description: `Scanned ${scannedFiles} files: ${counts.HIGH} HIGH, ${counts.MEDIUM} MEDIUM, ${counts.LOW} LOW.`,
-        token: process.env.GITHUB_TOKEN,
+        token: githubToken,
       });
       log('status_published', { jobId, traceId, verdict });
     }
