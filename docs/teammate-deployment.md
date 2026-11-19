@@ -1,15 +1,15 @@
-# Teammate deployment and Part C integration guide
+# Deploying and starting the Part A branch backend
 
 Last reviewed against `part-a-test` commit `619474e` on 2026-11-19.
 
-This guide is for a teammate and their Codex or Claude agent. Commands target Ubuntu Bash, Node.js 22, Terraform, Docker, and AWS CLI v2. Run repository commands from its root. Read the actual files before adapting commands to a newer commit.
+This guide is for a teammate and their Codex or Claude agent. It covers the webhook, integrated scanner worker, and AWS resources deployed by `part-a-test`. Part C source code was not reviewed for this guide. Its owner decides how to connect their implementation after inspecting both codebases. Commands target Ubuntu Bash, Node.js 22, Terraform, Docker, and AWS CLI v2. Run repository commands from its root. Read the actual files before adapting commands to a newer commit.
 
 ## Deployment decision
 
 | Mode | Account and credentials | Work required |
 | --- | --- | --- |
 | Integrate in the existing team environment | Account `551548984671`, with access explicitly authorized by the account/lab owner and course | Reuse its shared resources and coordinate changes to Terraform state with the owner. |
-| Independent teammate environment | Teammate's own active Learner Lab account and temporary credentials | Deploy this branch into that account, create its own SSM parameters and GitHub demo repository/webhook, then integrate Part C there. |
+| Independent teammate environment | Teammate's own active Learner Lab account and temporary credentials | Deploy this branch into that account, create its own SSM parameters and GitHub demo repository/webhook, then verify this backend independently. |
 
 For independent development, use the second mode. A teammate's credentials for their own account do not grant access to the original account. The currently deployed public endpoint accepts signed GitHub webhooks; it does not provide a general browser job-submission or report API. The S3 report bucket is private.
 
@@ -23,7 +23,7 @@ The deployed Lambda functions use the account's `LabRole` through the AWS runtim
 - Keep temporary credentials, tokens, decrypted SSM values, local state, plans, and variable files out of commits and chat output. Human-entered tokens can be sent through stdin.
 - Inspect plans. Existing resources with the same names require ownership/state reconciliation before proceeding. Avoid blindly importing, deleting, or overwriting them.
 - Complete deployment when both Lambdas are active, the event mapping is enabled, a real signed PR delivery returns 202, and the worker publishes the expected commit status and S3 report.
-- Complete Part C integration separately by exercising its actual paste API and UI against the shared services. This guide does not claim Part C is already deployed.
+- Stop this deployment task after verifying the backend. Part C integration belongs to its owner and is outside this guide.
 
 ## Temporary credentials and session restart
 
@@ -97,7 +97,7 @@ If role inspection is denied, consult the Lab's documented role availability. Th
 
 ## Create secrets in the target account
 
-The deployment script requires both parameters, including for a paste-oriented deployment.
+The deployment script requires both parameters.
 
 Create a fine-grained GitHub PAT for the developer-owned demo repository. Grant Contents read and Commit statuses read/write; Metadata remains read-only. Use an expiration covering the demo. A collaborator token for a repository owned by somebody else may have different limitations; an owned demo repository avoids this dependency.
 
@@ -252,60 +252,22 @@ gh api --paginate "repos/$demo_repo/rules/branches/main"
 
 Preserve existing rules. On a new unprotected demo repository whose default branch is main, use Settings > Branches to require `gatekeeper/sast`, require up-to-date branches, and enforce against bypass by administrators. Then verify a vulnerable commit is blocked and a fixed commit is clean. Do not apply a replacement protection configuration to the shared team repository without coordinating with its owners.
 
-## Part C contract and integration
+## Backend outputs for handoff
 
-The receiving Part C service should run in the same target account as the shared resources. Its server-side role accesses DynamoDB, SQS, and S3. A browser calls that service's API; permanent AWS credentials must not be embedded in frontend code.
-
-Discover target values instead of copying the original account's values.
+After deployment, obtain the actual values in the target account.
 
 ```bash
-export AWS_REGION=us-east-1
-export JOBS_TABLE=gk-jobs
-export REPORTS_BUCKET=$(terraform -chdir=infra output -raw reports_bucket_name)
-export QUEUE_URL=$(aws sqs get-queue-url --queue-name gk-jobs \
-  --region us-east-1 --query QueueUrl --output text)
+terraform -chdir=infra output
+aws sqs get-queue-url --queue-name gk-jobs \
+  --region us-east-1 --query QueueUrl --output text
+aws dynamodb describe-table --table-name gk-jobs \
+  --region us-east-1 \
+  --query 'Table.{Name:TableName,Status:TableStatus,Key:KeySchema}' --output json
 ```
 
-For paste intake, store the source object first, conditionally create its job next, and send the queue message last. Retrying intake should preserve a stable job identity. A queue failure after a successful table write must remain recoverable. `worker/scripts/fake-intake.js` is a smoke-test producer and creates a new job ID on every invocation; it is not a complete retry-safe production intake implementation.
+The backend uses `gk-jobs` as the DynamoDB table and jobs queue name, `gk-jobs-dlq` as the dead-letter queue name, and the `reports_bucket_name` output for its private S3 bucket. `webhook_url` is the signed GitHub event endpoint. Give the receiving developer these discovered values and the deployed commit ID.
 
-Example initial item, with actual IDs and timestamps generated by Part C.
-
-```json
-{
-  "jobId": "paste-<uuid>",
-  "traceId": "<request-uuid>",
-  "source": "paste",
-  "phase": "QUEUED",
-  "attempt": 0,
-  "codeKey": "pasted/paste-<uuid>.js",
-  "filename": "pasted.js",
-  "createdAt": "<UTC ISO timestamp>",
-  "updatedAt": "<UTC ISO timestamp>",
-  "expiresAt": 0
-}
-```
-
-Replace expiresAt with Unix seconds for 30 days after creation. The existing fake-intake script omits TTL, so do not copy that omission into the Part C service. SQS body has exactly jobId and traceId.
-
-```json
-{"jobId":"paste-<uuid>","traceId":"<request-uuid>"}
-```
-
-Worker-managed fields are phase (`RUNNING`, `FAILED`, `DONE` in addition to `QUEUED`), attempt, leaseOwner, leaseUntil, verdict (`success` or `failure`), counts (`HIGH`, `MEDIUM`, `LOW`), reportKey, and updatedAt. FAILED currently means eligible for retry, rather than necessarily terminal. Queue exhaustion goes to the DLQ; automated terminal GitHub error publication remains unfinished.
-
-Report JSON includes jobId, traceId, verdict, counts, scannedFiles, sourceBytes, scanMs, elapsedMs, and findings. Findings include file, line, column, severity, rule id, message and evidence. The private report object is read by the backend or exposed via a short-lived authorized URL. `elapsedMs` is captured before report upload and final status publication; it is not the complete webhook-to-GitHub latency.
-
-The current `byRepoTime` GSI is keyed by repo and createdAt. A paste item without repo will not appear in that sparse index. Agree a paste history lookup design with the team. The GSI projection does not include every job attribute, so full detail/report retrieval should use the primary-key job record when needed.
-
-For a smoke test of the shared worker before wiring the UI, run this with the discovered variables above. It creates a real paste job and report.
-
-```bash
-node worker/scripts/fake-intake.js worker/test/fixtures/normal-project.js
-```
-
-Use the returned jobId to query DynamoDB and retrieve reportKey. This verifies paste worker consumption, not the Part C HTTP API or browser flow. Route `/webhooks/github` is reserved for signed GitHub events. Part C still needs its own intake, status, report and history routes, validation, and appropriate CORS/access behavior.
-
-Shared resource ownership remains in the main `infra` configuration and remote state. Integrate additional resources with that ownership or consume outputs from a separate Part C stack; do not declare the same table, bucket, queue, API stage or trigger in two states. Coordinate the final integrated deployment in one chosen account.
+Implementation references for the receiving developer's own review are `worker/src/handler.js`, `worker/scripts/fake-intake.js`, `infra/modules/core/jobs.tf`, and `infra/modules/core/queues.tf`. These describe this branch's current behavior. They do not establish compatibility with unreviewed Part C code. This guide leaves Part C routing, data mapping, frontend behavior, deployment and integration changes to its owner.
 
 ## Repeat deploy and standalone Terraform commands
 
@@ -360,6 +322,6 @@ Verified in the original account: actual PR failure/success, branch protection b
 
 Copy this prompt to the receiving agent:
 
-> Read docs/teammate-deployment.md and the actual deployment scripts in this checkout. Help me deploy the integrated webhook and worker into my own AWS Academy Learner Lab in us-east-1, then connect my Part C implementation. First confirm my target account, owned GitHub demo repository, branch and active Lab credentials without exposing secrets. Follow the explicit first-deployment bootstrap steps, inspect plans, and discover all runtime resource values from my account. Preserve existing team branches and shared resource ownership. Validate a real PR, then paste intake and report retrieval, and report observed results separately from remaining tests. Keep changes small and explain any required manual credential or GitHub UI step.
+> Read docs/teammate-deployment.md and the actual deployment scripts in this checkout. Help me deploy and start the webhook and integrated worker from part-a-test in my own AWS Academy Learner Lab in us-east-1. First confirm my target account, owned GitHub demo repository, branch and active Lab credentials without exposing secrets. Follow the explicit first-deployment bootstrap steps, inspect plans, and discover all runtime resource values from my account. Preserve existing team branches and shared resource ownership. Validate a real PR and the deployed job/report, report observed results separately from remaining tests, and provide the backend resource values. Part C code has not been reviewed in this guide; leave its integration to me as a separate task. Keep changes small and explain any required manual credential or GitHub UI step.
 
 References: [AWS short-term CLI credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-authentication-short-term.html), [AWS Academy Learner Lab educator guide](https://d1.awsstatic.com/AWS%20Academy%20Learner%20Lab%20Educator%20Guide.pdf), [GitHub commit statuses](https://docs.github.com/en/rest/commits/statuses).
