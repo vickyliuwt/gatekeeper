@@ -88,3 +88,46 @@ The deployment completed with zero resources added, changed, or destroyed.
 This verifies repeat deployment of the integrated environment.
 The previously recorded 20-minute-52-second teardown and rebuild test
 covered Part A only.
+
+## Twenty distinct PR intake burst
+
+Run `20261119T055911Z-00074c` created PRs #2 through #21 in
+`Da-qiong/gatekeeper-demo`, using twenty distinct commit SHAs. Creation
+used up to four concurrent GitHub API requests. The worker remained enabled
+with batch size 1 and maximum concurrency 2, and its queue was empty before
+the test. Each test branch added a small clean JavaScript fixture.
+
+Original `pull_request.opened` deliveries were correlated with DynamoDB
+records using their GitHub delivery GUIDs and stored trace IDs. Redeliveries
+and unrelated earlier requests were excluded. The operator's CLI results
+confirmed the following measurements on 2026-11-19.
+
+| Measurement | Result |
+| --- | --- |
+| Distinct expected jobs | 20 |
+| Matching DynamoDB jobs | 20 |
+| Missing jobs / unprocessed read keys | 0 / none |
+| Original deliveries matched | 20 |
+| HTTP response counts | 20 returned 202 |
+| First original delivery, UTC | 2026-11-19T06:02:24.435Z |
+| Last original delivery, UTC | 2026-11-19T06:02:29.491Z |
+| First-to-last delivery window | 5.056 seconds |
+| GitHub delivery P95, nearest rank | 2.01 seconds |
+| Maximum GitHub delivery duration | 2.03 seconds |
+| Deliveries lasting at least 10 seconds | 0 |
+| Jobs in DONE phase at collection | 20 |
+| Jobs with success verdict at collection | 20 |
+
+This validates a bounded burst of twenty distinct PRs for Part A intake.
+The timing metric is GitHub delivery duration, including network and
+receiver response time. It is separate from the earlier API Gateway
+latency measurement. All jobs eventually completed successfully; full
+scan completion latency and sustained throughput were not measured here.
+
+Evidence was collected from the operator's Ubuntu environment and retained
+under `.git/gatekeeper-burst/20261119T055911Z-00074c/`, including `run.json`,
+`jobs.json`, `github-deliveries.json`, and `matched-deliveries.json`.
+These local evidence files are not transferred by Git clone. The initial
+collector encountered pagination and Python timestamp compatibility errors;
+collection was completed with terminal commands, and the incompatible
+test script was removed from this branch.
