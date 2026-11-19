@@ -77,3 +77,14 @@ uses batch size 1 and maximum concurrency 2.
 Local validation passed 28 worker tests and 35 webhook tests.
 Worker retry behavior was tested with mocks; AWS failure-recovery testing
 remains pending.
+
+## Integrated repeat deployment
+
+Ran `./scripts/deploy.sh Da-qiong/gatekeeper-demo` against the existing
+webhook and worker deployment. Both ECR images were reused, and both the
+bootstrap and main Terraform configurations reported no changes.
+The deployment completed with zero resources added, changed, or destroyed.
+
+This verifies repeat deployment of the integrated environment.
+The previously recorded 20-minute-52-second teardown and rebuild test
+covered Part A only.
