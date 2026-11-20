@@ -4,6 +4,10 @@ set -euo pipefail
 root=$(git rev-parse --show-toplevel)
 cd "$root"
 
+# both applies keep the intake and worker switches on
+# so a local switches file from
+# the node deploy tool can never turn them off here
+
 region=us-east-1
 repo=${1:-}
 if [[ ! "$repo" =~ ^[[:alnum:]_.-]+/[[:alnum:]_.-]+$ ]]; then
@@ -62,12 +66,12 @@ if [[ "$has_ecr" != "True" ]]; then
   terraform -chdir=infra apply \
     -target=aws_ecr_repository.webhook \
     -target=aws_ecr_repository.worker \
+    -var="enable_intake=true" \
+    -var="enable_worker=true" \
     -var="allowed_repo=$repo" \
     -var="webhook_image_digest=$placeholder" \
     -var="worker_image_digest=$placeholder"
 fi
-
-./scripts/ensure-reports-bucket.sh
 
 digest=$(./scripts/ensure-webhook-image.sh)
 worker_digest=$(./scripts/ensure-worker-image.sh)
@@ -75,6 +79,8 @@ printf 'Deploying webhook image %s\n' "$digest"
 printf 'Deploying worker image %s\n' "$worker_digest"
 
 terraform -chdir=infra apply \
+  -var="enable_intake=true" \
+  -var="enable_worker=true" \
   -var="allowed_repo=$repo" \
   -var="webhook_image_digest=$digest" \
   -var="worker_image_digest=$worker_digest"
