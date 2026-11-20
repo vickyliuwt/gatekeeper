@@ -193,13 +193,15 @@ resource "aws_cloudwatch_metric_alarm" "web_errors" {
 }
 
 # whole account Lambdas running at the same time
-# Learner Lab switches an account off near 10 so this warns at 5
+# each Learner Lab course has its own Lambda limit and we can not see the number
+# our first account went over it and got switched off
+# so 5 is our own safety line and this warns at 5
 # no dimensions means the metric is for the whole account
 resource "aws_cloudwatch_metric_alarm" "lambda_concurrency" {
   count = var.enable_alarm ? 1 : 0
 
   alarm_name          = "gk-lambda-concurrency"
-  alarm_description   = "5 or more Lambdas ran at the same time in this account. Learner Lab may switch an account off near 10. Stop every test and run lab-limits.mjs."
+  alarm_description   = "5 or more Lambdas ran at the same time in this account. That is over our safety line. Learner Lab switches an account off when it goes over its Lambda limit. Stop every test and look at the gk-web dashboard."
   namespace           = "AWS/Lambda"
   metric_name         = "ConcurrentExecutions"
   statistic           = "Maximum"

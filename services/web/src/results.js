@@ -21,6 +21,12 @@ export function normVerdict(verdict) {
   return VERDICT_WORDS[String(verdict).toLowerCase()] ?? 'INCOMPLETE';
 }
 
+// a DONE job with no verdict is not a pass
+// not scanned is not safe so it says INCOMPLETE
+export function doneVerdict(verdict) {
+  return normVerdict(verdict) ?? 'INCOMPLETE';
+}
+
 // counts can come as HIGH or high so we read both
 export function normCounts(counts) {
   if (!counts || typeof counts !== 'object' || Array.isArray(counts)) return null;
@@ -31,20 +37,50 @@ export function normCounts(counts) {
   return { high: read('high'), medium: read('medium'), low: read('low') };
 }
 
-export function toStatus(job) {
-  const done = job.phase === 'DONE';
+// the real worker leaves a job FAILED after the last try
+// then SQS moves the message to the dead letter queue so no new try comes
+// the worker never writes INCOMPLETE by itself
+// so this lambda shows the job as DONE and INCOMPLETE like our job rules say
+// storedPhase keeps what the job item really says
+// no update for 20 min also counts as stopped
+// one try waits at most 360 s in SQS so 20 min is more than 3 waits
+export const STOP_AFTER_MS = 20 * 60 * 1000;
+// list rows have no attempt or updatedAt in the index
+// 5 tries end in about 30 min so the list waits 45 min after createdAt
+export const LIST_STOP_AFTER_MS = 45 * 60 * 1000;
+
+export function stopReason(job, nowMs = Date.now()) {
+  if (!job || (job.phase !== 'FAILED' && job.phase !== 'RUNNING')) return null;
+  if (job.phase === 'FAILED' && Number(job.attempt ?? 0) >= MAX_ATTEMPTS) return 'last_try';
+  const at = Date.parse(job.updatedAt ?? job.createdAt ?? '');
+  return Number.isFinite(at) && nowMs - at >= STOP_AFTER_MS ? 'no_update' : null;
+}
+
+export function listStop(item, nowMs = Date.now()) {
+  if (!item || (item.phase !== 'FAILED' && item.phase !== 'RUNNING')) return null;
+  const at = Date.parse(item.createdAt ?? '');
+  return Number.isFinite(at) && nowMs - at >= LIST_STOP_AFTER_MS ? 'no_update' : null;
+}
+
+export function toStatus(job, nowMs = Date.now()) {
+  const stopped = stopReason(job, nowMs);
+  const done = job.phase === 'DONE' || stopped !== null;
   const status = {
     jobId: job.jobId,
     source: job.source,
-    phase: job.phase,
-    verdict: done ? normVerdict(job.verdict) : null,
-    counts: done ? normCounts(job.counts) : null,
+    phase: done ? 'DONE' : job.phase,
+    verdict: stopped ? 'INCOMPLETE' : (done ? doneVerdict(job.verdict) : null),
+    counts: done && !stopped ? normCounts(job.counts) : null,
     attempt: job.attempt ?? 0,
     maxAttempts: MAX_ATTEMPTS,
-    hasReport: done && typeof job.reportKey === 'string',
+    hasReport: done && !stopped && typeof job.reportKey === 'string',
     createdAt: job.createdAt ?? null,
     updatedAt: job.updatedAt ?? null,
   };
+  if (stopped) {
+    status.stopped = stopped;
+    status.storedPhase = job.phase;
+  }
   if (job.source === 'pr') {
     status.repo = job.repo ?? null;
     status.prNumber = job.prNumber ?? null;
@@ -55,20 +91,24 @@ export function toStatus(job) {
   return status;
 }
 
-export function toListItem(item) {
-  return {
+export function toListItem(item, nowMs = Date.now()) {
+  const stopped = listStop(item, nowMs);
+  const row = {
     jobId: item.jobId,
     repo: item.repo,
     prNumber: item.prNumber ?? null,
     headSha: item.headSha ?? null,
-    phase: item.phase ?? null,
-    verdict: normVerdict(item.verdict),
-    counts: normCounts(item.counts),
+    phase: stopped ? 'DONE' : (item.phase ?? null),
+    verdict: stopped ? 'INCOMPLETE' : (item.phase === 'DONE' ? doneVerdict(item.verdict) : normVerdict(item.verdict)),
+    counts: stopped ? null : normCounts(item.counts),
     createdAt: item.createdAt ?? null,
   };
+  if (stopped) row.stopped = stopped;
+  return row;
 }
 
-export function createResults({ store, blobs, allowedRepo, page, log }) {
+// clock is only for tests
+export function createResults({ store, blobs, allowedRepo, page, log, clock = () => Date.now() }) {
   if (!store || !blobs || !page || typeof log !== 'function') {
     throw new TypeError('createResults needs store, blobs, page and log');
   }
@@ -80,7 +120,8 @@ export function createResults({ store, blobs, allowedRepo, page, log }) {
   async function listRecent() {
     const items = allowedRepo ? await store.listRecent(allowedRepo, RECENT_LIMIT) : [];
     log('read', { route: 'list', count: items.length });
-    return json(200, { items: items.map(toListItem) });
+    const now = clock();
+    return json(200, { items: items.map((item) => toListItem(item, now)) });
   }
 
   async function readJob(request, route) {
@@ -101,7 +142,7 @@ export function createResults({ store, blobs, allowedRepo, page, log }) {
     const { job, response } = await readJob(request, 'status');
     if (response) return response;
     log('read', { jobId: job.jobId, traceId: job.traceId, route: 'status', phase: job.phase });
-    return json(200, toStatus(job));
+    return json(200, toStatus(job, clock()));
   }
 
   async function getReport(request) {
@@ -109,6 +150,10 @@ export function createResults({ store, blobs, allowedRepo, page, log }) {
     if (response) return response;
     const context = { jobId: job.jobId, traceId: job.traceId, route: 'report' };
 
+    if (stopReason(job, clock())) {
+      log('not_found', { ...context, reason: 'stopped' });
+      return fail(404, 'not_found', 'This scan stopped before a report was saved.', job.traceId);
+    }
     if (job.phase !== 'DONE') {
       return json(409, {
         error: 'not_ready',

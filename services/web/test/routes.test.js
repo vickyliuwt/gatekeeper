@@ -32,7 +32,10 @@ test('rate limits on the page match infra/ (Terraform)', { skip: !hasInfra && 'i
   const submit = web.match(/route\.submit\.route_key,\s*rate_limit\s*=\s*(\d+),\s*burst_limit\s*=\s*(\d+)/);
   assert.ok(submit, 'submit limit not found in outputs.tf');
   const rate = web.match(/rate_limit\s*=\s*name == "status" \? (\d+) : (\d+)/);
-  const burst = web.match(/burst_limit\s*=\s*name == "status" \? (\d+) : (\d+)/);
+  // burst can be one number for every results route or status and the rest
+  const both = web.match(/burst_limit\s*=\s*name == "status" \? (\d+) : (\d+)/);
+  const one = web.match(/burst_limit\s*=\s*(\d+)\s*\n\s*\}\]/);
+  const burst = both || (one && [one[0], one[1], one[1]]);
   assert.ok(rate && burst, 'results limits not found in outputs.tf');
   const intake = readFileSync(INTAKE, 'utf8');
   const hookRate = intake.match(/rate_limit\s*=\s*(\d+)/);

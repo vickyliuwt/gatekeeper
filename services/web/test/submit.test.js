@@ -57,6 +57,7 @@ test('saves the code, then the job, then the message, and answers 202', async ()
     source: 'paste',
     filename: 'app.js',
     pastedKey: `pasted/${JOB_ID}.js`,
+    codeKey: `pasted/${JOB_ID}.js`,
     phase: 'QUEUED',
     attempt: 0,
     traceId: TRACE_ID,

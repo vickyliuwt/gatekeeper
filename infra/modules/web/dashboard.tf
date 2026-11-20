@@ -19,7 +19,7 @@ resource "aws_cloudwatch_dashboard" "web" {
         width  = 24
         height = 2
         properties = {
-          markdown = "## GateKeeper Part C: Paste and Scan web\nToo many scans at once show up as API 4xx (429 from the POST /scans limit) while gk-results keeps answering. Queue age grows only while no worker is running. The two tables come from logs: Lambda metrics are split only by function, so the API access log shows each route. The last graph is the whole account: Learner Lab switches an account off near 10 Lambdas at once, so every test sends one request at a time."
+          markdown = "## GateKeeper Part C: Paste and Scan web\nToo many scans at once show up as API 4xx (429 from the POST /scans limit) while gk-results keeps answering. Queue age grows only while no worker is running. The two tables come from logs: Lambda metrics are split only by function, so the API access log shows each route. The last graph is the whole account: Learner Lab switches an account off when it goes over its Lambda limit, so we stay at our safety line of 5 and every test sends one request at a time."
         }
       },
       {
@@ -134,7 +134,7 @@ resource "aws_cloudwatch_dashboard" "web" {
         width  = 24
         height = 6
         properties = {
-          title   = "Whole account: Lambdas running at once (Learner Lab line is about 10, stay at 5 or less)"
+          title   = "Whole account: Lambdas running at once (our safety line is 5)"
           view    = "timeSeries"
           region  = var.region
           stat    = "Maximum"
@@ -145,8 +145,7 @@ resource "aws_cloudwatch_dashboard" "web" {
           ]
           annotations = {
             horizontal = [
-              { label = "stop tests", value = 5 },
-              { label = "Learner Lab line", value = 10 }
+              { label = "our safety line, stop tests", value = 5 }
             ]
           }
         }

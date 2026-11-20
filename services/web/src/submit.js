@@ -41,7 +41,17 @@ export function createSubmit({
 
     log('received', { traceId, bytes: byteLength(rawBody) });
 
-    if (!accessCodeMatches(headers['x-demo-code'], await getAccessCode())) {
+    // the real code lives in SSM
+    // if SSM can not be read we answer 503 with the trace id
+    // so the page and the logs can follow it and never a plain 500
+    let codeOk;
+    try {
+      codeOk = accessCodeMatches(headers['x-demo-code'], await getAccessCode());
+    } catch (error) {
+      log('error', { traceId, level: 'error', msg: 'access_code_unavailable', errorType: error?.name ?? 'Error' });
+      return fail(503, 'access_code_unavailable', 'The access code check is not working right now. Try again in a moment.', traceId);
+    }
+    if (!codeOk) {
       log('rejected', { traceId, reason: 'bad_demo_code' });
       return fail(401, 'bad_demo_code', 'The access code is missing or wrong.', traceId);
     }
@@ -91,6 +101,8 @@ export function createSubmit({
       source: 'paste',
       filename,
       pastedKey,
+      // the worker on part a reads codeKey so we save the same key under both names
+      codeKey: pastedKey,
       phase: 'QUEUED',
       attempt: 0,
       traceId,

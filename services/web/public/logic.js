@@ -36,7 +36,6 @@
     return a > m ? String(a) : `${a} of ${m}`;
   }
 
-  // poll every 2 s for the first 20 s then every 5 s
   // one scan every 2 s from one page
   // a fast double click then never starts 2 scans and 2 lambdas at once
   const SCAN_GAP_MS = 2000;
@@ -48,6 +47,33 @@
     return left > 0 ? Math.min(left, gap) : 0;
   }
 
+  // the Refresh button on Recent PR Checks waits 3 s between list calls
+  // so fast clicks never start many results lambdas at once
+  const LIST_GAP_MS = 3000;
+  function listWaitMs(lastListAt, now) {
+    return scanWaitMs(lastListAt, now, LIST_GAP_MS);
+  }
+
+  // a plain left click with no ctrl or shift or alt or cmd
+  // ctrl click and middle click still open a new tab like a normal link
+  function isPlainClick(event) {
+    const e = event || {};
+    return (e.button === undefined || e.button === 0)
+      && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && !e.defaultPrevented;
+  }
+
+  // the job id from the page address
+  // anything that is not a real job id gives null
+  function jobFromSearch(search) {
+    try {
+      const value = new URLSearchParams(String(search || '')).get('job');
+      return isJobId(value) ? value : null;
+    } catch (ignored) {
+      return null;
+    }
+  }
+
+  // poll every 2 s for the first 20 s then every 5 s
   function pollDelayMs(elapsedMs) {
     return elapsedMs < FAST_PHASE_MS ? FAST_POLL_MS : SLOW_POLL_MS;
   }
@@ -606,6 +632,7 @@
   // code is the http code of the report GET and 0 means no answer
   function reportMissingText(status, code) {
     const s = status || {};
+    if (s.stopped) return 'The scan stopped before a report was saved. Scan the code again to get one.';
     if (!s.hasReport) {
       return s.verdict === 'INCOMPLETE'
         ? 'No report was saved for this scan. Scan the code again to get one.'
@@ -620,6 +647,7 @@
   function finishLine(status, loaded, code) {
     if (loaded) return 'Scan finished. The report is ready below.';
     const s = status || {};
+    if (s.stopped) return stoppedText(s);
     if (s.hasReport) return code === 404 ? 'Scan finished. The report has expired.' : 'Scan finished. The full report could not be loaded.';
     return s.verdict === 'INCOMPLETE' ? 'Scan finished as INCOMPLETE. No report was saved.' : 'Scan finished. No report was saved.';
   }
@@ -686,7 +714,37 @@
     return 'This is not a GateKeeper scan link. Paste code above to start a new scan.';
   }
 
+  // a scan the worker stopped
+  // last try means try 5 failed and SQS moved it to the dead letter queue
+  // no update means nothing changed for 20 min
+  function stoppedText(status) {
+    const s = status || {};
+    const max = maxTries(s);
+    if (s.stopped === 'last_try') {
+      return `The worker stopped after try ${tryOf(Number(s.attempt) || max, max)}. The job item still says FAILED and the message moved to the dead letter queue. Not scanned is not safe, so it counts as blocked.`;
+    }
+    if (s.stopped === 'no_update') return 'No update for 20 minutes, so this scan counts as stopped. Not scanned is not safe, so it counts as blocked.';
+    return '';
+  }
+
+  // real numbers from the worker report
+  // how many files and how big and how long it took
+  function reportFacts(report) {
+    const r = report || {};
+    const rows = [];
+    let files = null;
+    if (Array.isArray(r.scannedFiles)) files = r.scannedFiles.length;
+    else if (Number.isInteger(r.scannedFiles) && r.scannedFiles >= 0) files = r.scannedFiles;
+    if (files !== null) rows.push(['Files scanned', String(files)]);
+    if (Number.isFinite(r.sourceBytes) && r.sourceBytes >= 0) rows.push(['Code size', formatKB(r.sourceBytes)]);
+    if (Number.isFinite(r.scanMs) && r.scanMs >= 0) rows.push(['Scanner time', latencyText(r.scanMs)]);
+    if (Number.isFinite(r.elapsedMs) && r.elapsedMs >= 0) rows.push(['Worker time', latencyText(r.elapsedMs)]);
+    return rows;
+  }
+
   root.GK = Object.freeze({
+    stoppedText,
+    reportFacts,
     FAST_POLL_MS,
     SLOW_POLL_MS,
     FAST_PHASE_MS,
@@ -699,6 +757,10 @@
     STEPS,
     SCAN_GAP_MS,
     scanWaitMs,
+    LIST_GAP_MS,
+    listWaitMs,
+    isPlainClick,
+    jobFromSearch,
     pollDelayMs,
     shouldKeepPolling,
     pollTimes,

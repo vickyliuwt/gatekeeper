@@ -9,6 +9,8 @@
 // simulate retry means try 1 fails and try 2 passes
 // simulate slow stays RUNNING 3 min so the page stops polling at 2 min
 // simulate incomplete ends INCOMPLETE with no report
+// simulate last try fails every try like the real worker
+// it stays FAILED after try 5 and the page shows INCOMPLETE
 // simulate 503 makes POST scans answer 503
 import express from 'express';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
@@ -127,7 +129,7 @@ function startLocalWorker({ store, blobs, queue, scanCode, speed, log }) {
   async function run({ jobId, traceId }) {
     const job = await store.get(jobId);
     if (!job || job.phase === 'DONE') return;
-    const code = (await blobs.getText(job.pastedKey)) ?? '';
+    const code = (await blobs.getText(job.codeKey ?? job.pastedKey)) ?? '';
 
     await wait(800);
     const claimed = await store.update(jobId, { phase: 'RUNNING', attempt: job.attempt + 1, leaseOwner: 'local-worker', updatedAt: now() });
@@ -142,6 +144,14 @@ function startLocalWorker({ store, blobs, queue, scanCode, speed, log }) {
       wait(8000).then(() => queue.messages.push({ jobId, traceId }));
       return;
     }
+    if (code.includes('SIMULATE_LAST_TRY')) {
+      // like the real worker every try fails and the job stays FAILED
+      // after try 5 SQS would move the message to the dead letter queue
+      await store.update(jobId, { phase: 'FAILED', lastError: 'LOCAL_LAST_TRY every try fails on purpose', updatedAt: now() });
+      log('retry', { jobId, traceId, msg: `try ${claimed.attempt} failed on purpose` });
+      if (claimed.attempt < 5) wait(3000).then(() => queue.messages.push({ jobId, traceId }));
+      return;
+    }
     if (code.includes('SIMULATE_INCOMPLETE')) {
       await store.update(jobId, {
         phase: 'DONE', verdict: 'INCOMPLETE', counts: { high: 0, medium: 0, low: 0 }, lastError: 'LOCAL_INCOMPLETE on purpose', updatedAt: now(),
@@ -150,23 +160,29 @@ function startLocalWorker({ store, blobs, queue, scanCode, speed, log }) {
       return;
     }
 
+    const scanStart = Date.now();
     const findings = scanCode ? scanCode(code, job.filename) : fallbackScan(code, job.filename);
+    const scanMs = Date.now() - scanStart;
     const counts = countBySeverity(findings);
+    // same shape as the real worker on part a
+    // success or failure and HIGH MEDIUM LOW and a number of files
+    const shape = { HIGH: counts.high, MEDIUM: counts.medium, LOW: counts.low };
+    const verdict = counts.high > 0 ? 'failure' : 'success';
     const report = maskReport({
       jobId,
-      source: 'paste',
-      scannerVersion: scanCode ? 'course scanner (local run)' : 'local fallback rule',
-      scannedAt: now(),
-      verdict: counts.high > 0 ? 'FAIL' : 'PASS',
-      counts,
-      scannedFiles: [job.filename],
-      skippedFiles: [],
+      traceId,
+      verdict,
+      counts: shape,
+      scannedFiles: 1,
+      sourceBytes: Buffer.byteLength(code, 'utf8'),
+      scanMs,
+      elapsedMs: scanMs + 900,
       findings,
     });
     const reportKey = `reports/${jobId}.json`;
     await blobs.put(reportKey, JSON.stringify(report), 'application/json');
-    await store.update(jobId, { phase: 'DONE', verdict: report.verdict, counts, reportKey, updatedAt: now() });
-    log('done', { jobId, traceId, msg: report.verdict });
+    await store.update(jobId, { phase: 'DONE', verdict, counts: shape, reportKey, updatedAt: now() });
+    log('done', { jobId, traceId, msg: verdict });
   }
 
   const tick = setInterval(() => {
@@ -215,7 +231,7 @@ export async function createLocalApp({
   const queue = createMemoryQueue({
     async beforeSend({ jobId }) {
       const job = await store.get(jobId);
-      const code = job ? await blobs.getText(job.pastedKey) : '';
+      const code = job ? await blobs.getText(job.codeKey ?? job.pastedKey) : '';
       if (code && code.includes('SIMULATE_503')) {
         const error = new Error('Simulated queue outage');
         error.name = 'SimulatedQueueError';
@@ -256,11 +272,11 @@ export async function createLocalApp({
   // same route limits as API Gateway
   // off in unit tests and on for npm run dev
   const limit = (burst, perSecond) => (routeLimits ? createRateLimiter({ burst, perSecond }) : (req, res, next) => next());
-  app.get('/', limit(10, 5), run('GET /', routes['GET /']));
+  app.get('/', limit(5, 2), run('GET /', routes['GET /']));
   app.post('/scans', createRateLimiter({ burst: 5, perSecond: 1 }), express.text({ type: () => true, limit: '1mb' }), run('POST /scans', submit));
-  app.get('/scans', limit(10, 5), run('GET /scans', routes['GET /scans']));
-  app.get('/scans/:jobId', limit(20, 10), run('GET /scans/{jobId}', routes['GET /scans/{jobId}']));
-  app.get('/scans/:jobId/report', limit(10, 5), run('GET /scans/{jobId}/report', routes['GET /scans/{jobId}/report']));
+  app.get('/scans', limit(5, 2), run('GET /scans', routes['GET /scans']));
+  app.get('/scans/:jobId', limit(5, 5), run('GET /scans/{jobId}', routes['GET /scans/{jobId}']));
+  app.get('/scans/:jobId/report', limit(5, 2), run('GET /scans/{jobId}/report', routes['GET /scans/{jobId}/report']));
   app.use((req, res) => {
     res.status(404).type('application/json').send(JSON.stringify({ message: 'Not Found' }));
   });

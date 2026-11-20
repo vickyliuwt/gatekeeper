@@ -402,11 +402,11 @@
             <thead><tr><th scope="col">Route</th><th scope="col">Lambda</th><th scope="col">What it does</th><th scope="col">Limit</th></tr></thead>
             <tbody>
               <tr data-route="POST /scans"><td data-label="Route"><span class="rverb rverb-write">POST</span><code>/scans</code></td><td data-label="Lambda"><code>gk-submit</code></td><td data-label="What it does">checks the access code, saves code + job, sends the job to SQS</td><td data-label="Limit">1/s, burst 5</td></tr>
-              <tr data-route="GET /scans/{jobId}"><td data-label="Route"><span class="rverb">GET</span><code>/scans/{jobId}</code></td><td data-label="Lambda"><code>gk-results</code></td><td data-label="What it does">small status from DynamoDB, the route this page polls</td><td data-label="Limit">10/s, burst 20</td></tr>
-              <tr data-route="GET /scans/{jobId}/report"><td data-label="Route"><span class="rverb">GET</span><code>/scans/{jobId}/<wbr>report</code></td><td data-label="Lambda"><code>gk-results</code></td><td data-label="What it does">masked report from S3, read once the job is DONE</td><td data-label="Limit">5/s, burst 10</td></tr>
-              <tr data-route="GET /scans"><td data-label="Route"><span class="rverb">GET</span><code>/scans</code></td><td data-label="Lambda"><code>gk-results</code></td><td data-label="What it does">newest 20 PR checks, never a paste</td><td data-label="Limit">5/s, burst 10</td></tr>
-              <tr data-route="GET /"><td data-label="Route"><span class="rverb">GET</span><code>/</code></td><td data-label="Lambda"><code>gk-results</code></td><td data-label="What it does">this page, with a strict CSP</td><td data-label="Limit">5/s, burst 10</td></tr>
-              <tr class="route-intake" data-route="POST /webhooks/github"><td data-label="Route"><span class="rverb rverb-write">POST</span><code>/webhooks/github</code></td><td data-label="Lambda"><code>gk-webhook</code></td><td data-label="What it does">signed pull request events from GitHub (webhook intake)</td><td data-label="Limit">10/s, burst 25</td></tr>
+              <tr data-route="GET /scans/{jobId}"><td data-label="Route"><span class="rverb">GET</span><code>/scans/{jobId}</code></td><td data-label="Lambda"><code>gk-results</code></td><td data-label="What it does">small status from DynamoDB, the route this page polls</td><td data-label="Limit">5/s, burst 5</td></tr>
+              <tr data-route="GET /scans/{jobId}/report"><td data-label="Route"><span class="rverb">GET</span><code>/scans/{jobId}/<wbr>report</code></td><td data-label="Lambda"><code>gk-results</code></td><td data-label="What it does">masked report from S3, read once the job is DONE</td><td data-label="Limit">2/s, burst 5</td></tr>
+              <tr data-route="GET /scans"><td data-label="Route"><span class="rverb">GET</span><code>/scans</code></td><td data-label="Lambda"><code>gk-results</code></td><td data-label="What it does">newest 20 PR checks, never a paste</td><td data-label="Limit">2/s, burst 5</td></tr>
+              <tr data-route="GET /"><td data-label="Route"><span class="rverb">GET</span><code>/</code></td><td data-label="Lambda"><code>gk-results</code></td><td data-label="What it does">this page, with a strict CSP</td><td data-label="Limit">2/s, burst 5</td></tr>
+              <tr class="route-intake" data-route="POST /webhooks/github"><td data-label="Route"><span class="rverb rverb-write">POST</span><code>/webhooks/github</code></td><td data-label="Lambda"><code>gk-webhook</code></td><td data-label="What it does">signed pull request events from GitHub (webhook intake)</td><td data-label="Limit">5/s, burst 5</td></tr>
             </tbody>
           </table>
         </div>
@@ -415,7 +415,7 @@
         <h3><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg>Security built in</h3>
         <ul class="guard-grid">
           <li><strong>Only our routes</strong><span>5 for this page, 1 for GitHub. Any other path gets 404.</span></li>
-          <li><strong>Rate limits</strong><span>POST /scans: 1 per second, burst 5. Polls have their own higher limit.</span></li>
+          <li><strong>Rate limits</strong><span>POST /scans: 1 per second. Every page route has burst 5, so one burst stays under our Lambda safety line.</span></li>
           <li><strong>Access code in SSM</strong><span>SecureString. Never in git, the image or Terraform state.</span></li>
           <li><strong>Secrets masked</strong><span>Each quoted secret keeps its first 4 characters. Same rule in worker and page.</span></li>
           <li><strong>Strict CSP</strong><span>Only this page's own style and script run, checked by hash.</span></li>

@@ -8,7 +8,9 @@
 // the course scanner copies the whole line into evidence
 // rule 3
 // known token shapes are masked in every finding
-// like Stripe live keys and GitHub tokens and AWS key ids
+// like Stripe keys and GitHub tokens and the fine grained GitHub ones
+// and AWS key ids AKIA plus the temp ASIA ones Learner Lab gives us
+// and AWS session tokens
 // rule 4
 // a served report keeps only the fields in the two allow lists below
 // quote not closed because the scanner cuts lines at 100 chars
@@ -18,8 +20,10 @@
 const QUOTED = /(['"`])((?:\\.|(?!\1)[^\\])*)(\1|$)/g;
 const TOKEN_SHAPES = [
   /sk_(?:live|test)_[A-Za-z0-9]{6,}/g,
+  /github_pat_[A-Za-z0-9_]{20,}/g,
   /gh[pousr]_[A-Za-z0-9]{12,}/g,
-  /AKIA[0-9A-Z]{16}/g,
+  /(?:AKIA|ASIA)[0-9A-Z]{16}/g,
+  /(?:IQoJb3JpZ2lu|FwoGZXIvYXdz)[A-Za-z0-9+/=]{20,}/g,
 ];
 
 export function keepFour(value) {
@@ -66,6 +70,8 @@ export function maskEvidenceText(text, { quoted = false } = {}) {
 }
 
 export const MAX_FINDINGS = 500;
+// real numbers from the worker like the scan time
+export const NUMBER_FIELDS = Object.freeze(['sourceBytes', 'scanMs', 'elapsedMs']);
 
 // public page so a report leaves the results lambda with these fields only
 // anything else a worker adds gets dropped
@@ -73,6 +79,7 @@ export const MAX_FINDINGS = 500;
 export const REPORT_FIELDS = Object.freeze([
   'jobId', 'source', 'repo', 'prNumber', 'headSha', 'scannerVersion', 'scannedAt',
   'verdict', 'counts', 'scannedFiles', 'skippedFiles',
+  'sourceBytes', 'scanMs', 'elapsedMs',
 ]);
 // the 9 fields the course scanner gives for one finding
 export const FINDING_FIELDS = Object.freeze(['id', 'name', 'severity', 'description', 'message', 'file', 'line', 'column', 'evidence']);
@@ -97,5 +104,24 @@ export function maskReport(report) {
     .slice(0, MAX_FINDINGS)
     .filter((f) => f && typeof f === 'object' && !Array.isArray(f))
     .map((f) => pick(f, FINDING_FIELDS));
-  return { ...pick(report, REPORT_FIELDS), findings: maskFindings(findings) };
+  const out = { ...pick(report, REPORT_FIELDS), findings: maskFindings(findings) };
+  // the worker numbers stay only when they are real numbers 0 or more
+  for (const key of NUMBER_FIELDS) {
+    if (key in out && !(typeof out[key] === 'number' && Number.isFinite(out[key]) && out[key] >= 0)) delete out[key];
+  }
+  if ('scannedFiles' in out) {
+    const files = cleanScanned(out.scannedFiles);
+    if (files === null) delete out.scannedFiles;
+    else out.scannedFiles = files;
+  }
+  return out;
+}
+
+// the real worker gives a number of files
+// an older worker gives a list of file names
+// names are masked too and the list is cut at the same 500
+export function cleanScanned(value) {
+  if (Array.isArray(value)) return value.filter((name) => typeof name === 'string').slice(0, MAX_FINDINGS).map((name) => maskTokens(name));
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 0) return value;
+  return null;
 }

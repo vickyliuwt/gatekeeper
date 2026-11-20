@@ -461,6 +461,9 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: r
 .js .reveal.is-in { opacity: 1; transform: none; }
 .js .reveal.d2 { transition-delay: 0.06s; }
 .hero-art .art { animation: float 7s ease-in-out infinite; }
+/* if a script breaks before the reveal runs the top cards still show after 2 s */
+.js .reveal:not(.is-in) { animation: gk-show 0.01s linear 2s forwards; }
+@keyframes gk-show { to { opacity: 1; transform: none; } }
 @keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(117, 101, 150, 0.28); } 70% { box-shadow: 0 0 0 9px rgba(117, 101, 150, 0); } 100% { box-shadow: 0 0 0 0 rgba(117, 101, 150, 0); } }
 @keyframes blink { 50% { opacity: 0.35; } }
 @keyframes land { 0% { transform: scale(1.25) rotate(-4deg); opacity: 0; } 60% { transform: scale(0.97); opacity: 1; } 100% { transform: none; } }

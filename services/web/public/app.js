@@ -126,6 +126,13 @@
   let lastStatus = null;
   let lastReportCode = null;
   let reloading = false;
+  // the PR list asks one time at a time
+  let listing = false;
+  // a scan that ends while the list loads asks one more time after it
+  let listAgain = false;
+  // when the list last asked and the timer that wakes the Refresh button
+  let lastListAt = 0;
+  let listTimer = 0;
 
   // small helpers
   function el(tag, className, text) {
@@ -603,7 +610,7 @@
     }
   }
 
-  function startTracking(jobId, { sentAt = null, traceId = null, fromLink = false, keepLog = false } = {}) {
+  function startTracking(jobId, { sentAt = null, traceId = null, fromLink = false, keepLog = false, fromList = false } = {}) {
     stopTracking();
     runId += 1;
     lastJobId = jobId;
@@ -615,7 +622,9 @@
     // lastCode stays null until a bad answer comes back
     // then it keeps the last bad http code
     // 0 means no answer at all for the 2 minute note
-    tracking = { jobId, startedAt: sentAt || Date.now(), timer: 0, polls: 0, seen: {}, fromLink, lastKey: '', lastCode: null };
+    // fromList means Open in Recent PR Checks
+    // sawNotDone turns true when a poll sees the job before DONE
+    tracking = { jobId, startedAt: sentAt || Date.now(), timer: 0, polls: 0, seen: {}, fromLink, fromList, sawNotDone: false, lastKey: '', lastCode: null };
     ui.jobId.textContent = jobId;
     ui.jobId.title = jobId;
     ui.traceId.textContent = typeof traceId === 'string' && traceId ? traceId : '—';
@@ -670,6 +679,7 @@
     ui.pollCount.textContent = `${current.polls} ${current.polls === 1 ? 'poll' : 'polls'}`;
     ui.readPolls.textContent = ui.pollCount.textContent;
     if (status) {
+      if (status.phase !== 'DONE') current.sawNotDone = true;
       const key = `${status.phase}|${status.attempt}|${status.verdict}`;
       if (key !== current.lastKey) {
         current.lastKey = key;
@@ -751,7 +761,10 @@
     // saved on the server but the GET failed so offer one more try
     ui.reloadReport.hidden = !(status.hasReport && !report && got.code !== 404);
     ui.statusText.textContent = GK.finishLine(status, Boolean(report), got.code);
-    loadRecent();
+    // the PR list only changes when a PR job moved while this page watched it
+    // a paste never shows in the list
+    // and a job that was DONE at the first look is already listed
+    if (status.source === 'pr' && current.sawNotDone) loadRecent();
   }
 
   function renderTime(status) {
@@ -816,7 +829,7 @@
     ui.skippedList.replaceChildren(...skippedLines.map((text) => el('li', null, text)));
     ui.skipped.hidden = skippedLines.length === 0;
 
-    ui.scanFacts.replaceChildren(...GK.scanFacts(status).flatMap(([label, value]) => [el('dt', null, label), el('dd', null, value)]));
+    ui.scanFacts.replaceChildren(...[...GK.scanFacts(status), ...GK.reportFacts(report)].flatMap(([label, value]) => [el('dt', null, label), el('dd', null, value)]));
     ui.scanLog.open = GK.scanLogOpen(status);
     scrollReportLog();
 
@@ -1047,7 +1060,26 @@
     ui.statPrNote.textContent = `${GK.shortSha(item.headSha)} · ${GK.timeAgo(item.createdAt, Date.now())}`;
   }
 
+  // the Refresh button looks busy while the list loads and for 3 s after
+  function wakeRefresh() {
+    win.clearTimeout(listTimer);
+    const wait = GK.listWaitMs(lastListAt, Date.now());
+    if (wait > 0) {
+      listTimer = win.setTimeout(wakeRefresh, wait);
+      return;
+    }
+    if (!listing) ui.refreshRecent.setAttribute('aria-disabled', 'false');
+  }
+
   async function loadRecent() {
+    // one list call at a time so fast clicks never start many lambdas
+    if (listing) {
+      listAgain = true;
+      return;
+    }
+    listing = true;
+    lastListAt = Date.now();
+    ui.refreshRecent.setAttribute('aria-disabled', 'true');
     try {
       const { code, body } = await getJson('/scans');
       if (code !== 200 || !body || !Array.isArray(body.items)) throw new Error('unexpected list');
@@ -1057,7 +1089,81 @@
       ui.recentNote.textContent = 'Recent checks are not available right now.';
       ui.recentNote.hidden = false;
       renderPrStat(null, true);
+    } finally {
+      listing = false;
+      wakeRefresh();
     }
+    // one more call for a scan that ended while this one was loading
+    if (listAgain) {
+      listAgain = false;
+      loadRecent();
+    }
+  }
+
+  // the Refresh button
+  // a click while the list loads or within 3 s of the last list call does nothing
+  // so a fast double click on Refresh starts only one lambda
+  function onRefresh() {
+    if (listing) {
+      announce('The list is still loading. One request at a time.');
+      return;
+    }
+    const wait = GK.listWaitMs(lastListAt, Date.now());
+    if (wait > 0) {
+      announce(`One list request at a time. Wait ${Math.ceil(wait / 1000)} seconds.`);
+      return;
+    }
+    loadRecent();
+  }
+
+  // Open in Recent PR Checks shows that scan right here
+  // no page reload so only the status call and one report call run
+  // ctrl click or middle click still opens a new tab
+  function openFromList(event) {
+    const link = event.target.closest('a.open-link');
+    if (!link || !GK.isPlainClick(event)) return;
+    const jobId = GK.jobFromSearch(link.search);
+    if (!jobId) return;
+    event.preventDefault();
+    const alreadyHere = jobId === lastJobId && (tracking || view.phase === 'DONE');
+    if (!alreadyHere) {
+      const url = new URL(win.location.href);
+      url.searchParams.set('job', jobId);
+      url.hash = '';
+      win.history.pushState({ job: jobId }, '', url);
+      startTracking(jobId, { fromLink: true, fromList: true });
+    }
+    ui.activity.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
+    announce(alreadyHere ? 'This scan is already open above.' : 'Opening this pull request scan above.');
+  }
+
+  function reduceMotion() {
+    return Boolean(win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  // no job in the page address so the cards go back to empty
+  function showIdle() {
+    stopTracking();
+    runId += 1;
+    lastJobId = null;
+    resetLog();
+    hideReport();
+    resetLiveMeta();
+    showActivity(ui.empty);
+    view = { mode: 'idle' };
+    render();
+  }
+
+  // the Back and Forward buttons after Open
+  // the page shows the scan in that address or the empty cards
+  function onHistory() {
+    const jobId = GK.jobFromSearch(win.location.search);
+    if (!jobId) {
+      showIdle();
+      return;
+    }
+    if (jobId === lastJobId && (tracking || view.phase === 'DONE')) return;
+    startTracking(jobId, { fromLink: true, fromList: true });
   }
 
   // page frame with the env pill and nav and reveal
@@ -1173,7 +1279,9 @@
     filter = button.dataset.filter;
     renderFindings();
   });
-  ui.refreshRecent.addEventListener('click', loadRecent);
+  ui.refreshRecent.addEventListener('click', onRefresh);
+  ui.recentBody.addEventListener('click', openFromList);
+  win.addEventListener('popstate', onHistory);
   // load the report again after a failed GET
   // the scan is done so only the report call runs
   ui.reloadReport.addEventListener('click', async () => {

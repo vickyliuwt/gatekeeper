@@ -1,5 +1,6 @@
 // the lab safety parts in Terraform stay in place
-// Learner Lab switches an account off when too many Lambdas run at once
+// Learner Lab switches an account off when it goes over its Lambda limit
+// we can not see that number so 5 is our own safety line
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -32,6 +33,14 @@ test('an alarm warns at 5 Lambdas at once for the whole account', () => {
 
 test('the dashboard shows the whole account line and no flood words', () => {
   assert.match(dash, /"AWS\/Lambda", "ConcurrentExecutions"/);
-  assert.match(dash, /value = 10/);
+  assert.match(dash, /our safety line[^"]*", value = 5/);
   assert.doesNotMatch(dash, /flood/i);
+});
+
+test('no made up lab number in the alarm and dashboard text', () => {
+  // the course sets the real limit and it is not public so we never say near 10
+  for (const text of [main, dash]) {
+    assert.doesNotMatch(text, /near 10|about 10|Learner Lab line/i);
+  }
+  assert.match(main, /our safety line/);
 });
