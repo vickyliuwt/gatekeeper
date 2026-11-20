@@ -1,0 +1,35 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadAccessCode",
+      "Effect": "Allow",
+      "Action": "ssm:GetParameter",
+      "Resource": "arn:aws:ssm:us-east-1:${account_id}:parameter/gatekeeper/demo-code"
+    },
+    {
+      "Sid": "SavePastedCode",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::gk-data-${account_id}/pasted/*"
+    },
+    {
+      "Sid": "CreatePasteJob",
+      "Effect": "Allow",
+      "Action": "dynamodb:PutItem",
+      "Resource": "arn:aws:dynamodb:us-east-1:${account_id}:table/gk-jobs"
+    },
+    {
+      "Sid": "QueueTheJob",
+      "Effect": "Allow",
+      "Action": "sqs:SendMessage",
+      "Resource": "arn:aws:sqs:us-east-1:${account_id}:gk-jobs"
+    },
+    {
+      "Sid": "WriteOwnLogs",
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+      "Resource": "arn:aws:logs:us-east-1:${account_id}:log-group:/aws/lambda/gk-submit:*"
+    }
+  ]
+}

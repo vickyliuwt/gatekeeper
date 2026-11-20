@@ -1,0 +1,13 @@
+{
+  "name": "gatekeeper-gk-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GateKeeper deploy, destroy, smoke, trace and access-code tools (Node only, no dependencies).",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

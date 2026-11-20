@@ -1,0 +1,29 @@
+{
+  "version": "2.0",
+  "routeKey": "GET /scans",
+  "rawPath": "/scans",
+  "rawQueryString": "",
+  "headers": {
+    "accept": "application/json",
+    "host": "abc123.execute-api.us-east-1.amazonaws.com",
+    "x-forwarded-proto": "https"
+  },
+  "requestContext": {
+    "accountId": "123456789012",
+    "apiId": "abc123",
+    "domainName": "abc123.execute-api.us-east-1.amazonaws.com",
+    "http": {
+      "method": "GET",
+      "path": "/scans",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "203.0.113.10",
+      "userAgent": "curl/8.9.1"
+    },
+    "requestId": "Example-request-id=",
+    "routeKey": "GET /scans",
+    "stage": "$default",
+    "time": "02/Nov/2026:15:10:00 +0000",
+    "timeEpoch": 1793632200000
+  },
+  "isBase64Encoded": false
+}

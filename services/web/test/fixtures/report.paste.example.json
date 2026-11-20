@@ -1,0 +1,29 @@
+{
+  "jobId": "paste-3f2a9c4e-8b1d-4e6f-9a7b-2c5d8e1f0a3b",
+  "source": "paste",
+  "scannerVersion": "1.0.0",
+  "scannedAt": "2026-11-02T15:10:04.000Z",
+  "verdict": "FAIL",
+  "counts": {
+    "high": 1,
+    "medium": 0,
+    "low": 0
+  },
+  "scannedFiles": [
+    "snippet.js"
+  ],
+  "skippedFiles": [],
+  "findings": [
+    {
+      "id": "HARDCODED_SECRET",
+      "name": "Hardcoded Secret",
+      "severity": "HIGH",
+      "description": "Hardcoded password",
+      "message": "Hardcoded secret detected. Move secrets to environment variables.",
+      "file": "snippet.js",
+      "line": 1,
+      "column": 7,
+      "evidence": "const password = \"admi****\";"
+    }
+  ]
+}

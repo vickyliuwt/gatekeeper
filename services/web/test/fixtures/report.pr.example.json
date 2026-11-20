@@ -1,0 +1,60 @@
+{
+  "jobId": "pr-7812-9c1e2ab4d5e6f708192a3b4c5d6e7f8091a2b3c4",
+  "source": "pr",
+  "repo": "OWNER/gatekeeper-demo",
+  "prNumber": 12,
+  "headSha": "9c1e2ab4d5e6f708192a3b4c5d6e7f8091a2b3c4",
+  "scannerVersion": "1.0.0",
+  "scannedAt": "2026-11-02T15:04:09.000Z",
+  "verdict": "FAIL",
+  "counts": {
+    "high": 1,
+    "medium": 2,
+    "low": 0
+  },
+  "scannedFiles": [
+    "src/pay.js",
+    "src/db.js"
+  ],
+  "skippedFiles": [
+    {
+      "path": "README.md",
+      "reason": "not_scanned_type"
+    }
+  ],
+  "findings": [
+    {
+      "id": "HARDCODED_SECRET",
+      "name": "Hardcoded Secret",
+      "severity": "HIGH",
+      "description": "Stripe secret key",
+      "message": "Hardcoded secret detected. Move secrets to environment variables.",
+      "file": "src/pay.js",
+      "line": 12,
+      "column": 16,
+      "evidence": "const apiKey = \"sk_l****\";"
+    },
+    {
+      "id": "HARDCODED_IP",
+      "name": "Hardcoded IP Address",
+      "severity": "MEDIUM",
+      "description": "Hardcoded IPv4 address",
+      "message": "Hardcoded IP address found. Use environment variables or configuration files.",
+      "file": "src/db.js",
+      "line": 2,
+      "column": 16,
+      "evidence": "const dbHost = \"192.168.1.10\";"
+    },
+    {
+      "id": "INSECURE_RANDOM",
+      "name": "Insecure Randomness",
+      "severity": "MEDIUM",
+      "description": "Math.random() is not cryptographically secure",
+      "message": "Math.random() is not cryptographically secure. Use crypto.randomBytes() or crypto.randomUUID() instead.",
+      "file": "src/db.js",
+      "line": 3,
+      "column": 19,
+      "evidence": "const sessionId = Math.random().toString(36);"
+    }
+  ]
+}

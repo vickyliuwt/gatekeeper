@@ -1,9 +1,9 @@
-# LF line endings
+# use LF line endings
 
-# Default
+# default for every file
 * text=auto eol=lf
 
-#Code and config
+# code and config
 *.js            text eol=lf
 *.mjs           text eol=lf
 *.cjs           text eol=lf
@@ -23,17 +23,17 @@
 .dockerignore   text eol=lf
 .env.example    text eol=lf
 
-# run inside Linux / Docker
+# these run inside linux and docker
 *.sh            text eol=lf
 Dockerfile      text eol=lf
 Dockerfile.*    text eol=lf
 
-# Windows
+# windows only files
 *.ps1           text eol=crlf
 *.bat           text eol=crlf
 *.cmd           text eol=crlf
 
-# Binary files
+# binary files
 *.png           binary
 *.jpg           binary
 *.jpeg          binary
@@ -54,5 +54,5 @@ Dockerfile.*    text eol=lf
 *.mp4           binary
 *.mov           binary
 
-# GitHub
+# github files
 package-lock.json  linguist-generated=true

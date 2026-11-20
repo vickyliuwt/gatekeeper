@@ -1,0 +1,27 @@
+{
+  "jobId": "paste-3f2a9c4e-8b1d-4e6f-9a7b-2c5d8e1f0a3b",
+  "traceId": "0b6f3c2a-5d4e-4f1a-8c9b-7e6d5c4b3a21",
+  "verdict": "failure",
+  "counts": {
+    "HIGH": 1,
+    "MEDIUM": 0,
+    "LOW": 0
+  },
+  "scannedFiles": 1,
+  "sourceBytes": 102,
+  "scanMs": 2,
+  "elapsedMs": 412,
+  "findings": [
+    {
+      "id": "INSECURE_FUNCTION",
+      "name": "Insecure Function Usage",
+      "severity": "HIGH",
+      "description": "Usage of eval()",
+      "message": "Insecure function detected. These functions can execute arbitrary code.",
+      "file": "snippet.js",
+      "line": 3,
+      "column": 13,
+      "evidence": "const out = eval(userInput);"
+    }
+  ]
+}
