@@ -54,11 +54,14 @@ resource "aws_lambda_function" "worker" {
   # one shared data bucket
   # my submit lambda writes pasted code and my results lambda reads reports
   # so the worker reads and writes the same bucket
+  # the page url makes the Details link on GitHub open my page
+  # it is empty when the web part is off
   environment {
     variables = {
       JOBS_TABLE         = module.core.jobs_table_name
       REPORTS_BUCKET     = module.core.data_bucket_name
       GITHUB_TOKEN_PARAM = "/gatekeeper/github-token"
+      PAGE_URL           = local.web_on ? "${module.core.api_endpoint}/" : ""
     }
   }
 
