@@ -1,7 +1,9 @@
 name: ci
 
-# runs on every PR (no path filter), so the required check ci-ok always shows up
-# no AWS keys here, CI never deploys. we deploy by hand in our own Learner Lab
+# runs on every PR with no path filter
+# so the required check always shows up
+# no AWS keys here and CI never deploys
+# we deploy by hand in our own Learner Lab
 on:
   pull_request:
   push:
@@ -42,6 +44,18 @@ jobs:
             npm install --no-audit --no-fund
           fi
           npm test --if-present
+      # the worker tests use paths from the repo root
+      # and the worker package has no test script
+      # so this step runs them from the root
+      - name: Worker tests from the repo root
+        if: matrix.dir == 'worker'
+        shell: bash
+        run: |
+          if ls worker/test/*.test.js >/dev/null 2>&1; then
+            node --test worker/test/*.test.js
+          else
+            echo "skip: no worker tests yet"
+          fi
 
   terraform:
     runs-on: ubuntu-latest
