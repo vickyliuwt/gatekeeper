@@ -1,7 +1,7 @@
 # local lambda emulators for the 3 images
 # each container listens on 8080 inside
 # port 9001 is the webhook for Part A
-# port 9002 is the worker for Part B
+# port 9002 is the worker for Part A and B
 # port 9003 is the web image as results and 9004 as submit for Part C
 # start only your own part from the repo root
 # works in PowerShell or bash
@@ -31,10 +31,12 @@ services:
       JOBS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/${ACCOUNT_ID:-000000000000}/gk-jobs
       WEBHOOK_SECRET_PARAM: /gatekeeper/webhook-secret
 
-  # the worker folder comes with Part B
-  # until it is on this branch do not start the worker profile
+  # the worker from part a builds from the repo root
+  # its image copies the course scanner too
   worker:
-    build: ./services/worker
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
     profiles: ["worker"]
     platform: linux/amd64
     ports:
@@ -42,8 +44,8 @@ services:
     environment:
       <<: *aws-env
       ALLOWED_REPO: ${ALLOWED_REPO:-example/gatekeeper-demo}
-      JOBS_TABLE_NAME: gk-jobs
-      DATA_BUCKET_NAME: gk-data-${ACCOUNT_ID:-000000000000}
+      JOBS_TABLE: gk-jobs
+      REPORTS_BUCKET: gk-data-${ACCOUNT_ID:-000000000000}
       GITHUB_TOKEN_PARAM: /gatekeeper/github-token
       PAGE_URL: ${PAGE_URL:-http://localhost:9300/}
 

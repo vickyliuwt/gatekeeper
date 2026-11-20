@@ -1,0 +1,43 @@
+name: Worker CI
+
+on:
+  push:
+    branches: [part-a-test]
+    paths:
+      - 'worker/**'
+      - 'sast/backend/scanner.js'
+      - '.github/workflows/worker-ci.yml'
+  pull_request:
+    branches: [main, part-a-test]
+    paths:
+      - 'worker/**'
+      - 'sast/backend/scanner.js'
+      - '.github/workflows/worker-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  worker-tests:
+    name: Worker unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm --prefix worker ci
+
+      - name: Run worker tests
+        run: node --test worker/test/*.test.js
+        env:
+          GITHUB_TOKEN_PARAM: ''

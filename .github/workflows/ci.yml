@@ -1,0 +1,72 @@
+name: ci
+
+# runs on every PR (no path filter), so the required check ci-ok always shows up
+# no AWS keys here, CI never deploys. we deploy by hand in our own Learner Lab
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  node:
+    name: node (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [services/webhook, services/web, services/worker, worker, scripts/gk, sast/backend]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Install and test
+        shell: bash
+        run: |
+          if [ ! -f "${{ matrix.dir }}/package.json" ]; then
+            echo "skip: ${{ matrix.dir }} has no package.json yet"
+            exit 0
+          fi
+          cd "${{ matrix.dir }}"
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          elif grep -q '"dependencies"\|"devDependencies"' package.json; then
+            npm install --no-audit --no-fund
+          fi
+          npm test --if-present
+
+  terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.17.1
+      - name: fmt, init, validate
+        shell: bash
+        run: |
+          if [ ! -d infra ]; then echo "skip: no infra folder yet"; exit 0; fi
+          terraform -chdir=infra fmt -check -recursive
+          terraform -chdir=infra init -backend=false -input=false
+          terraform -chdir=infra validate
+
+  ci-ok:
+    if: always()
+    needs: [node, terraform]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job passed
+        shell: bash
+        run: |
+          echo "node=${{ needs.node.result }} terraform=${{ needs.terraform.result }}"
+          test "${{ needs.node.result }}" = "success"
+          test "${{ needs.terraform.result }}" = "success"
