@@ -1,0 +1,38 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadJobs",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:Query"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:us-east-1:${account_id}:table/gk-jobs",
+        "arn:aws:dynamodb:us-east-1:${account_id}:table/gk-jobs/index/byRepoTime"
+      ]
+    },
+    {
+      "Sid": "ReadReports",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::gk-data-${account_id}/reports/*"
+    },
+    {
+      "Sid": "MissingReportIs404Not403",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::gk-data-${account_id}"
+    },
+    {
+      "Sid": "WriteOwnLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:us-east-1:${account_id}:log-group:/aws/lambda/gk-results:*"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+# only what the Lambda needs goes into the image
+*
+!Dockerfile
+!package.json
+!package-lock.json
+!src/
+!src/**
+!public/
+!public/**

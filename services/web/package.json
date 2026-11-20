@@ -1,0 +1,26 @@
+{
+  "name": "gatekeeper-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GateKeeper Part C: the Paste and Scan page plus gk-submit and gk-results (one image).",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test",
+    "dev": "node src/local.js",
+    "self-scan": "node scripts/self-scan.js",
+    "invoke-local": "node scripts/invoke-local.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1158.0",
+    "@aws-sdk/client-s3": "^3.1158.0",
+    "@aws-sdk/client-sqs": "^3.1158.0",
+    "@aws-sdk/client-ssm": "^3.1161.0",
+    "@aws-sdk/lib-dynamodb": "^3.1158.0"
+  },
+  "devDependencies": {
+    "express": "^4.22.3"
+  }
+}
