@@ -12,7 +12,7 @@ import {
 export const HELP = `Usage (from the repo root):
   node scripts/gk/deploy.mjs --core                            first deploy: core + data bucket only, no part
   node scripts/gk/deploy.mjs --part web                        Weiting, Part C
-  node scripts/gk/deploy.mjs --part worker                     Yuyao, Part B (once infra/worker.tf has its ECR)
+  node scripts/gk/deploy.mjs --part worker                     the worker by Lingsong and Yuyao (its ECR is in infra/worker-ecr.tf)
   node scripts/gk/deploy.mjs --part intake --repo OWNER/REPO   Lingsong, Part A (same result as scripts/deploy.sh)
   node scripts/gk/deploy.mjs --part intake --part worker --part web --repo OWNER/REPO   integration (demo account)
 Options: --allow-remove (only on purpose: lets this deploy delete a part that is live in this account),

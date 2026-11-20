@@ -20,4 +20,6 @@ resource "aws_cloudwatch_metric_alarm" "api_5xx" {
 
 output "alerts_topic_arn" {
   value = aws_sns_topic.alerts.arn
+  # the ARN has the account id so apply and output show sensitive
+  sensitive = true
 }

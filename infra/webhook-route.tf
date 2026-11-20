@@ -29,13 +29,15 @@ resource "aws_apigatewayv2_route" "webhook" {
 }
 
 # route limit for Part A
+# burst 5 like every web route so one burst stays under our safety line
+# GitHub sends one delivery per PR event so 5 is plenty
 # added to the stage in the core file
 # the route key comes from the route so the stage waits for the route
 locals {
   intake_route_throttles = [for route in aws_apigatewayv2_route.webhook : {
     route_key   = route.route_key
-    rate_limit  = 10
-    burst_limit = 25
+    rate_limit  = 5
+    burst_limit = 5
   }]
 }
 
