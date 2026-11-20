@@ -55,7 +55,8 @@ const vulnerabilityRules = [
       { regex: /fs\.(readFile|readFileSync|writeFile|writeFileSync|unlink|unlinkSync)\s*\(\s*req\.(body|query|params)/gi, desc: 'User input directly in file operation' },
       { regex: /fs\.(readFile|readFileSync|writeFile|writeFileSync)\s*\([^)]*\+\s*req\./gi, desc: 'User input concatenated in file path' },
       { regex: /path\.join\s*\([^)]*req\.(body|query|params)/gi, desc: 'User input in path.join()' },
-      { regex: /['"][^'"]*\.\.\/[^'"]*['"]/g, desc: 'Path traversal sequence detected' }
+      { regex: /['"][^'"]*\.\.\/[^'"]*['"]\s*\+|\+\s*['"][^'"]*\.\.\/[^'"]*['"]/g, desc: 'Path traversal sequence in concatenated path' },
+      { regex: /['"][^'"]*\.\.\/[^'"]*(?:etc\/(?:passwd|shadow|hosts)|\.ssh\/|\.aws\/|proc\/self|windows\/system32)[^'"]*['"]/gi, desc: 'Path traversal to a sensitive system path' }
     ],
     message: 'Potential path traversal vulnerability. Validate and sanitize file paths.'
   },
@@ -74,9 +75,9 @@ const vulnerabilityRules = [
     name: 'Sensitive Data Logging',
     severity: 'MEDIUM',
     patterns: [
-      { regex: /console\.(log|info|debug|warn|error)\s*\([^)]*(?:password|passwd|pwd)[^)]*\)/gi, desc: 'Logging password' },
-      { regex: /console\.(log|info|debug|warn|error)\s*\([^)]*(?:token|secret|apikey|api_key)[^)]*\)/gi, desc: 'Logging sensitive token/key' },
-      { regex: /console\.(log|info|debug|warn|error)\s*\([^)]*(?:creditcard|credit_card|ssn|social_security)[^)]*\)/gi, desc: 'Logging sensitive personal data' }
+      { regex: /console\.(log|info|debug|warn|error)\s*\([^)\n]{0,200}(?:password|passwd|pwd)[^)\n]{0,200}\)/gi, desc: 'Logging password' },
+      { regex: /console\.(log|info|debug|warn|error)\s*\([^)\n]{0,200}(?:token|secret|apikey|api_key)[^)\n]{0,200}\)/gi, desc: 'Logging sensitive token/key' },
+      { regex: /console\.(log|info|debug|warn|error)\s*\([^)\n]{0,200}(?:creditcard|credit_card|ssn|social_security)[^)\n]{0,200}\)/gi, desc: 'Logging sensitive personal data' }
     ],
     message: 'Sensitive data may be logged. Remove or mask sensitive information in logs.'
   },
@@ -110,7 +111,7 @@ const vulnerabilityRules = [
     severity: 'HIGH',
     patterns: [
       { regex: /\beval\s*\(/g, desc: 'Usage of eval()' },
-      { regex: /\bexec\s*\(/g, desc: 'Usage of exec()' },
+      { regex: /(?<![.\w])exec\s*\(/g, desc: 'Usage of exec()' },
       { regex: /\bexecSync\s*\(/g, desc: 'Usage of execSync()' },
       { regex: /\bspawn\s*\([^)]*\$\{/g, desc: 'Unvalidated input in spawn()' },
       { regex: /new\s+Function\s*\(/g, desc: 'Usage of new Function()' },
@@ -140,7 +141,7 @@ const vulnerabilityRules = [
       { regex: /createHash\s*\(\s*['"]sha1['"]\s*\)/gi, desc: 'SHA1 hash usage' },
       { regex: /crypto\.createCipher\s*\(/g, desc: 'Deprecated createCipher usage' },
       { regex: /crypto\.createDecipher\s*\(/g, desc: 'Deprecated createDecipher usage' },
-      { regex: /DES|RC4|RC2|Blowfish/gi, desc: 'Weak encryption algorithm' }
+      { regex: /\b(?:3DES|DES|RC4|RC2|Blowfish)\b/g, desc: 'Weak encryption algorithm' }
     ],
     message: 'Weak cryptographic algorithm detected. Use stronger alternatives like SHA256 or AES-256.'
   }
