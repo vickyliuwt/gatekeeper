@@ -12,6 +12,8 @@ const JOBS_TABLE = process.env.JOBS_TABLE;
 const REPORTS_BUCKET = process.env.REPORTS_BUCKET;
 const LEASE_SECONDS = 90;
 const JOB_BUDGET_MS = 60_000;
+// same number as maxReceiveCount in the core queue file
+const MAX_TRIES = 5;
 
 const s3 = new S3Client({ region: REGION });
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }));
@@ -25,6 +27,14 @@ function log(stage, fields = {}) {
 function maskEvidence(finding) {
   if (finding.id !== 'HARDCODED_SECRET') return finding;
   return { ...finding, evidence: finding.evidence.replace(/(['"])[^'"]{4,}\1/g, '$1***$1') };
+}
+
+// Details link on GitHub opens our page for this job
+// no link when the web part is off
+function detailsUrl(jobId) {
+  const base = process.env.PAGE_URL || '';
+  if (!/^https:\/\/[^\s?#]+\/$/.test(base)) return undefined;
+  return `${base}?job=${encodeURIComponent(jobId)}`;
 }
 
 function summarize(findings) {
@@ -80,7 +90,7 @@ async function finishJob(jobId, owner, patch) {
   }));
 }
 
-async function processJob({ jobId, traceId }) {
+async function processJob({ jobId, traceId }, { receiveCount = 1 } = {}) {
   const owner = crypto.randomUUID();
   const startedAt = Date.now();
 
@@ -101,11 +111,14 @@ async function processJob({ jobId, traceId }) {
   }
   log('claimed', { jobId, traceId, owner });
 
+  // outside the try so the last try can still post to GitHub
+  let job;
+  let githubToken;
+  const targetUrl = detailsUrl(jobId);
   try {
-    const { Item: job } = await ddb.send(new GetCommand({ TableName: JOBS_TABLE, Key: { jobId }, ConsistentRead: true }));
+    ({ Item: job } = await ddb.send(new GetCommand({ TableName: JOBS_TABLE, Key: { jobId }, ConsistentRead: true })));
     if (!job) throw new Error(`job ${jobId} was not found`);
 
-    let githubToken;
     if (job.source === 'pr') {
       githubToken = await getGitHubToken();
     }
@@ -115,6 +128,7 @@ async function processJob({ jobId, traceId }) {
         state: 'pending',
         description: 'Scan in progress.',
         token: githubToken,
+        targetUrl,
       });
     }
 
@@ -173,6 +187,7 @@ async function processJob({ jobId, traceId }) {
         state: verdict,
         description: `Scanned ${scannedFiles} files: ${counts.HIGH} HIGH, ${counts.MEDIUM} MEDIUM, ${counts.LOW} LOW.`,
         token: githubToken,
+        targetUrl,
       });
       log('status_published', { jobId, traceId, verdict });
     }
@@ -203,6 +218,23 @@ async function processJob({ jobId, traceId }) {
         errorType: recoveryError.name,
       });
     }
+
+    // last try before the dead letter queue
+    // tell GitHub the scan stopped so the PR is not pending forever
+    // the merge stays blocked because error is not success
+    if (receiveCount >= MAX_TRIES && job?.source === 'pr') {
+      try {
+        await publishCommitStatus(job, {
+          state: 'error',
+          description: `Scan stopped after ${MAX_TRIES} tries. Merge stays blocked.`,
+          token: githubToken || await getGitHubToken(),
+          targetUrl,
+        });
+        log('status_published', { jobId, traceId, verdict: 'error', receiveCount });
+      } catch (statusError) {
+        log('error_status_failed', { jobId, traceId, errorType: statusError.name });
+      }
+    }
     throw error;
   }
 }
@@ -210,8 +242,10 @@ async function processJob({ jobId, traceId }) {
 export const handler = async (event) => {
   for (const record of event.Records ?? []) {
     const body = JSON.parse(record.body);
+    // how many times SQS handed us this message
+    const receiveCount = Number(record.attributes?.ApproximateReceiveCount) || 1;
     try {
-      await processJob(body);
+      await processJob(body, { receiveCount });
     } catch (err) {
       log('error', { jobId: body.jobId, traceId: body.traceId, message: err.message });
       throw err; // let SQS retry, then the DLQ

@@ -4,6 +4,7 @@ export async function publishCommitStatus(job, {
   state,
   description,
   token,
+  targetUrl,
   fetchImpl = globalThis.fetch,
 } = {}) {
   if (job?.source !== 'pr') {
@@ -28,6 +29,13 @@ export async function publishCommitStatus(job, {
   if (typeof token !== 'string' || token.trim() === '') {
     throw new Error('GitHub token is required for status publishing');
   }
+  // optional Details link and it must be a plain https link
+  if (
+    targetUrl !== undefined &&
+    (typeof targetUrl !== 'string' || !/^https:\/\/\S+$/.test(targetUrl) || targetUrl.length > 2048)
+  ) {
+    throw new TypeError('Invalid status target URL');
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10_000);
@@ -50,6 +58,7 @@ export async function publishCommitStatus(job, {
           state,
           context: 'gatekeeper/sast',
           description,
+          ...(targetUrl ? { target_url: targetUrl } : {}),
         }),
       },
     );
