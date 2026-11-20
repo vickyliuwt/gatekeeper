@@ -72,3 +72,21 @@ test('the web build is the same as before', () => {
   assert.deepEqual(build.slice(-6), ['--file', 'services/web/Dockerfile', '--tag', `123456789012.dkr.ecr.us-east-1.amazonaws.com/gatekeeper/x:${SHA}`, '--push', 'services/web']);
   assert.deepEqual(calls[0].slice(-1), ['services/web']);
 });
+
+test('the worker ECR can live in worker-ecr.tf like on part a', () => {
+  const root = mkdtempSync(join(tmpdir(), 'gk-worker-'));
+  mkdirSync(join(root, 'worker'));
+  mkdirSync(join(root, 'infra'));
+  writeFileSync(join(root, 'worker', 'Dockerfile'), 'FROM x\n');
+  writeFileSync(join(root, 'worker', 'package-lock.json'), '{}\n');
+  writeFileSync(join(root, 'infra', 'worker.tf'), 'variable "enable_worker" {\n}\n');
+  writeFileSync(join(root, 'infra', 'worker-ecr.tf'), 'resource "aws_ecr_repository" "worker" {\n  count = 1\n}\n');
+  assert.deepEqual(partProblems('worker', root), []);
+});
+
+test('no ECR in any infra file is still a problem', () => {
+  const root = mkdtempSync(join(tmpdir(), 'gk-worker-'));
+  mkdirSync(join(root, 'infra'));
+  writeFileSync(join(root, 'infra', 'worker.tf'), 'variable "enable_worker" {\n}\n');
+  assert.match(partProblems('worker', root).join(' '), /aws_ecr_repository "worker"/);
+});
