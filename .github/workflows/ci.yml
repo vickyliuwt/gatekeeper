@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dir: [services/webhook, services/web, services/worker, worker, scripts/gk, sast/backend]
+        dir: [services/webhook, services/web, worker, scripts/gk, sast/backend]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
