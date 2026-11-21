@@ -7,7 +7,7 @@ team:
 - Yuyao Xu: scanner fixes and the paste worker
 - Weiting Liu: Paste and Scan web, deploy tool and the merge
 
-## what it does
+## Our App
 - every pull request in our demo repo gets scanned by the course SAST scanner on AWS
 - a HIGH finding gives commit status `failure`, so the merge is blocked
 - a scan that could not check everything gives `error`, so it is blocked too (not checked is not safe)
@@ -80,11 +80,11 @@ in Learner Lab we send one request at a time. no burst or flood tests there.
 | webhook tests | 35 / 35 |
 | webhook reply time (20 deliveries) | p95 1.80 s, max 1.88 s |
 | Part A rebuild from zero | 20 min 52 s |
-| worker tests (with the last try fix) | 34 / 34 |
+| worker tests  | 34 / 34 |
 | Part C tests (page, 2 functions, the real worker fit) | 236 / 236, self-scan HIGH 0 |
 | scripts/gk tests | 34 / 34 |
-| real PR gate in our demo repo (Nov 20) | 1 HIGH found and the merge blocked, the fix commit passed |
-| full stack deploy from int/all (Nov 20) | 38 resources, smoke 10 / 10 and 11 / 11 |
+| real PR gate in our demo repo | 1 HIGH found and the merge blocked, the fix commit passed |
+| full stack deploy from int/all  | 38 resources, smoke 10 / 10 and 11 / 11 |
 | Part C deploy from zero in a new lab account | 29 resources in 2.4 min, smoke 10 / 10 and 11 / 11 |
 | paste to result, 10 scans one after another, team worker | p50 0.67 s, p95 1.30 s |
 | paste to result, 10 scans one after another, laptop test worker | p50 2.40 s, p95 2.69 s |
