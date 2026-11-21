@@ -80,7 +80,7 @@ in Learner Lab we send one request at a time. no burst or flood tests there.
 | webhook tests | 35 / 35 |
 | webhook reply time (20 deliveries) | p95 1.80 s, max 1.88 s |
 | Part A rebuild from zero | 20 min 52 s |
-| worker tests (with the last try fix) | 34 / 34 |
+| worker tests  | 34 / 34 |
 | Part C tests (page, 2 functions, the real worker fit) | 236 / 236, self-scan HIGH 0 |
 | scripts/gk tests | 34 / 34 |
 | real PR gate in our demo repo | 1 HIGH found and the merge blocked, the fix commit passed |
