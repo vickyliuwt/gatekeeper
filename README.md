@@ -3,9 +3,9 @@
 cloud security gate for GitHub pull requests, on AWS. CS6620 Fall 2026, Prof. Aanchan Mohan.
 
 team:
-- Lingsong Qin: Part A, PR intake and the PR path of the worker
-- Yuyao Xu: Part B, scanner fixes and the paste worker
-- Weiting Liu: Part C, Paste and Scan web, deploy tool and the merge
+- Lingsong Qin: PR intake and the PR path of the worker
+- Yuyao Xu: scanner fixes and the paste worker
+- Weiting Liu: Paste and Scan web, deploy tool and the merge
 
 ## what it does
 - every pull request in our demo repo gets scanned by the course SAST scanner on AWS
@@ -14,7 +14,7 @@ team:
 - after 5 failed tries the PR gets `error` with a Details link to our page
 - a public Paste and Scan page: paste JavaScript, get the same check, read a masked report
 
-## the Paste and Scan page
+## Paste and Scan page
 - Code Scanner: paste code or load an example, type the access code, run the scan
 - Your scan, through AWS: 8 boxes (write path and read path) light up from the real job phase (not a health monitor)
 - Scan Activity: received, queued, scanning, report, try n of 5, and the calls the page made
@@ -44,7 +44,7 @@ paste path: `GET /` (the page, from gk-results), then `POST /scans` (gk-submit),
 | `scripts/gk` | deploy, destroy, smoke and peek-job for every part |
 | `docs` | IAM policies for a real AWS account, Part A notes |
 
-## run on your laptop
+## run Locally
 ```
 cd services/web
 npm install
